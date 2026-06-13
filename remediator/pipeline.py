@@ -10,16 +10,18 @@ from __future__ import annotations
 from pathlib import Path
 
 from remediator.config import Config, load_config
-from remediator.fixers import pptx_fixer
+from remediator.fixers import pdf_fixer, pptx_fixer
+from remediator.handlers.pdf_handler import PdfHandler
 from remediator.handlers.pptx_handler import PptxHandler
 from remediator.llm.provider import build_provider
 from remediator.models import ACTION_PLACEHOLDER, FileReport
-from remediator.rules import pptx_rules
+from remediator.rules import pdf_rules, pptx_rules
 from remediator.scorer import compute_score
 
 # extension -> (handler class, audit fn, fix fn)
 _REGISTRY = {
     ".pptx": (PptxHandler, pptx_rules.audit_pptx, pptx_fixer.fix_pptx),
+    ".pdf": (PdfHandler, pdf_rules.audit_pdf, pdf_fixer.fix_pdf),
 }
 
 

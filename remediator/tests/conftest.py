@@ -5,6 +5,7 @@ files (so no binaries live in git) plus a fake LLM provider.
 from __future__ import annotations
 
 import io
+from pathlib import Path
 
 import pytest
 from PIL import Image
@@ -100,3 +101,65 @@ def fake_provider():
 @pytest.fixture
 def decorative_provider():
     return FakeProvider(decorative=True)
+
+
+# ── PDF fixtures (built with reportlab; encrypted via pikepdf) ──
+
+
+def _build_text_pdf(path) -> None:
+    """An untagged PDF with text but no title and no language (fails D1/D2/D12)."""
+    import pikepdf
+    from reportlab.lib.pagesizes import letter
+    from reportlab.pdfgen import canvas
+
+    tmp = str(path) + ".tmp.pdf"
+    c = canvas.Canvas(tmp, pagesize=letter)
+    c.drawString(72, 720, "Photosynthesis converts light into chemical energy.")
+    c.drawString(72, 700, "Light reactions occur in the thylakoid membrane.")
+    c.showPage()
+    c.save()
+    # reportlab writes a default /Title of "untitled"; strip it so D2 truly fails.
+    with pikepdf.open(tmp) as pdf:
+        if "/Title" in pdf.docinfo:
+            del pdf.docinfo["/Title"]
+        pdf.save(str(path))
+    Path(tmp).unlink()
+
+
+def _build_image_only_pdf(path, image_path) -> None:
+    """A page with only an image and no text (a 'scanned' page: fails D8/D3)."""
+    from reportlab.lib.pagesizes import letter
+    from reportlab.pdfgen import canvas
+
+    c = canvas.Canvas(str(path), pagesize=letter)
+    c.drawImage(str(image_path), 72, 400, width=200, height=200)
+    c.showPage()
+    c.save()
+
+
+@pytest.fixture
+def bad_pdf(tmp_path):
+    path = tmp_path / "bad.pdf"
+    _build_text_pdf(path)
+    return path
+
+
+@pytest.fixture
+def image_pdf(tmp_path):
+    img = tmp_path / "pic.png"
+    Image.new("RGB", (200, 200), (90, 140, 200)).save(str(img))
+    path = tmp_path / "scanned.pdf"
+    _build_image_only_pdf(path, img)
+    return path
+
+
+@pytest.fixture
+def encrypted_pdf(tmp_path):
+    import pikepdf
+
+    src = tmp_path / "plain.pdf"
+    _build_text_pdf(src)
+    path = tmp_path / "encrypted.pdf"
+    with pikepdf.open(str(src)) as pdf:
+        pdf.save(str(path), encryption=pikepdf.Encryption(owner="o", user="u"))
+    return path

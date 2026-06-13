@@ -35,5 +35,7 @@ remediated — so placeholders are never presented as genuine fixes.
 
 ## Status
 
-Phase 1, PPTX path complete end-to-end (checks P1–P13). PDF path (D1–D21),
-the FastAPI app, and the React UI are next — see [`progress.md`](progress.md).
+Phase 1. PPTX path complete end-to-end (P1–P13). PDF path complete for metadata
+fixes (D2 title, D12 language) with honest detection/reporting of the structural
+checks (D1/D3/D8/D9–D11/D16); PDF OCR and structure-tree synthesis are deferred
+follow-ups. The FastAPI app and React UI are next — see [`progress.md`](progress.md).
