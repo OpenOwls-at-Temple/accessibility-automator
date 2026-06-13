@@ -6,12 +6,12 @@
 ## Current Phase
 <!-- Which phase are we actively working on? e.g. Phase 1 -->
 
-**Active Phase:** Phase 1 — specs complete, implementation not yet started.
+**Active Phase:** Phase 1 — implementation underway. Repo scaffolded; PPTX remediation path complete end-to-end.
 
 ## Status Summary
 <!-- One or two sentences describing where the project stands right now -->
 
-All `ai_specs/` files are filled in for **Accessibility Automator**: a standalone web app (React + FastAPI) that remediates faculty PPTX/PDF lecture files against WCAG so they score near-100 in Canvas/YuJa Panorama. The specs are ready to hand to Claude Code for implementation, starting with the `remediator/` engine.
+The `remediator/` engine now audits, fixes, re-scores, and reports on **PPTX** files end-to-end (checks P1–P13), driven either as a library or via `python -m backend.cli fix`. AI alt-text/titles run through an OpenAI-compatible provider with placeholder fallback; the report surfaces both checker-passing and truly-remediated scores. 16 tests pass; `black`/`ruff` clean. Next: the PDF path (D1–D21), then the FastAPI app, then the React UI.
 
 ---
 
@@ -25,13 +25,18 @@ All `ai_specs/` files are filled in for **Accessibility Automator**: a standalon
 - [x] `ai_specs/llm-integration.md` — alt-text + title prompts, confidence→placeholder fallback, OpenAI-compatible provider, evaluation — 2026-06-13
 - [x] `ai_specs/conventions.md` — naming (`_a11y`, groups, P#/D#), one-way engine dependency, testing, LLM rules — 2026-06-13
 - [x] `ai_specs/deployment.md` — Render (persistent disk + Tesseract) / Temple, env vars, Azure SSO setup — 2026-06-13
+- [x] Repo scaffold — `remediator/`, `backend/`, `frontend/` (placeholder); `config.yaml`, `requirements.txt`, `pyproject.toml` (black/ruff/pytest), `.env.example`, `.gitignore`, README — 2026-06-13
+- [x] Engine core — `models.py` (AuditResult/FixResult/ScoreBreakdown/FileReport), `config.py` (YAML loader), `scorer.py` (weighted, severe-cap, placeholder-aware) — 2026-06-13
+- [x] PPTX path — `handlers/pptx_handler.py` (alt-text/decorative OOXML helpers), `rules/pptx_rules.py` (P1–P13 audit), `fixers/pptx_fixer.py` + `fixers/ai_fixer.py`, `llm/provider.py` (OpenAI-compatible) + `llm/prompts.py`, `pipeline.py`, `reporter.py` (JSON+HTML) — 2026-06-13
+- [x] CLI — `backend/cli.py` (`fix` command), runs engine end-to-end without the web layer — 2026-06-13
+- [x] Tests — scorer, PPTX rules, PPTX fixer/pipeline (16 passing); fixtures built programmatically in `conftest.py` — 2026-06-13
 
 ---
 
 ## In Progress
 <!-- What is actively being worked on right now? -->
 
-- [ ] _(none — ready to begin implementation)_
+- [ ] _(none — PPTX path landed; PDF path is next)_
 
 ---
 
@@ -47,9 +52,10 @@ All `ai_specs/` files are filled in for **Accessibility Automator**: a standalon
 ## Up Next
 <!-- The next 2-3 tasks to tackle in the current phase -->
 
-- [ ] Scaffold the repo per `architecture-planning.md` (frontend/, backend/, remediator/).
-- [ ] Implement the engine PPTX path first: `models.py` + `scorer.py` → `rules/pptx_rules.py` (P1–P13) → `fixers/pptx_fixer.py` + `llm/provider.py` + `ai_fixer.py` → `reporter.py`, runnable via `backend/cli.py`.
-- [ ] Then PDF path (`pdf_rules.py`, `pdf_fixer.py` incl. OCR), then the FastAPI layer (mock auth first), then the React UI.
+- [ ] PDF path: implement `handlers/pdf_handler.py`, `rules/pdf_rules.py` (D1–D21), `fixers/pdf_fixer.py` (incl. OCR via pytesseract); register `.pdf` in `pipeline.py`. Expect many "needs review" on structural tagging (D1/D4/D7).
+- [ ] FastAPI layer (`backend/app/`): mock auth first, per-user storage service, job runner, routes (groups/files/jobs/reports/signoff), then `AzureOIDCProvider`.
+- [ ] React UI (`frontend/`): sign-in, file explorer, upload, status polling, report viewer, sign-off modal.
+- [ ] Validate real PPTX captioning against a live OpenAI-compatible endpoint (set `LLM_*`); spot-check alt-text quality per `llm-integration.md` evaluation targets.
 
 ---
 
@@ -67,4 +73,5 @@ All `ai_specs/` files are filled in for **Accessibility Automator**: a standalon
 ## Session Log
 <!-- Brief note after each work session. Most recent at the top. -->
 
+- **2026-06-13 (impl 1)** — Scaffolded the repo and built the full PPTX remediation path. Engine: models, YAML config, weighted scorer (severe-cap + placeholder-aware), PPTX handler with OOXML alt-text/decorative helpers, P1–P13 audit rules, deterministic + AI fixers, OpenAI-compatible LLM provider (httpx, no vendor SDK) with placeholder fallback, pipeline, and JSON/HTML reporter. CLI `fix` runs it end-to-end. 16 tests pass; black/ruff clean. Verified on a demo deck (44 → 100 checker / 75 truly-remediated in placeholder mode) and confirmed the output reopens as valid PPTX. Used Python 3.12 venv (system Python is 3.9; conventions require 3.11+). Added a small heuristic: bare-filename alt text (e.g. python-pptx's default `image.png`) is treated as missing.
 - **2026-06-13** — Worked through the full application concept with faculty sponsor and filled in all seven `ai_specs/` files. Researched WCAG + YuJa Panorama to ground `domain-knowledge.md`. Resolved an overview/features conflict around auth/storage. Specs ready for Claude Code implementation.
