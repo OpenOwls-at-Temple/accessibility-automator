@@ -1,0 +1,35 @@
+# ── Accessibility Automator — runtime configuration ──
+# Non-secret runtime behavior only. Secrets live in environment variables.
+# See ai_specs/architecture-planning.md §Configuration.
+
+llm:
+  enabled: true
+  generate_alt_text: true
+  suggest_titles: true
+  max_image_size_kb: 1024        # resize before sending to the API
+  confidence_threshold: 0.6      # below this -> placeholder
+  timeout_seconds: 60
+  max_output_tokens: 200
+
+fixes:
+  auto_fix_minor: true
+  auto_fix_major: true
+  convert_old_format: true       # .ppt -> .pptx
+
+signoff:
+  add_placeholder_for_unfixable: true
+  placeholder_alt_text: "[Image — description pending instructor review]"
+  placeholder_slide_title_prefix: "Slide"
+  default_language: "en-US"
+
+scoring:
+  severe_weight: 3
+  major_weight: 2
+  minor_weight: 1
+  severe_cap: 20
+
+storage:
+  max_file_size_mb: 50
+
+server:
+  cors_origins: ["http://localhost:5173"]
