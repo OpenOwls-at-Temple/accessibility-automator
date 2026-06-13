@@ -10,7 +10,7 @@ and the specs in [`ai_specs/`](ai_specs/).
 | Path | What it is |
 |------|------------|
 | `remediator/` | The engine: audit → fix → re-score → report. Standalone; never imports `backend/`. |
-| `backend/` | FastAPI web layer (CLI built; API next). May import `remediator/`. |
+| `backend/` | FastAPI web layer (`app/`) + CLI. May import `remediator/`. |
 | `frontend/` | React + Vite SPA (not started yet). |
 | `ai_specs/` | The SDD spec set (source of truth). |
 | `config.yaml` | Non-secret runtime config. Secrets live in env vars (`.env.example`). |
@@ -32,6 +32,19 @@ The CLI reads `LLM_API_KEY` / `LLM_BASE_URL` / `LLM_MODEL` for AI alt text and
 slide titles. With none set it still runs, degrading those items to flagged
 placeholders. The report surfaces **two** scores — checker-passing vs truly
 remediated — so placeholders are never presented as genuine fixes.
+
+## Run the API server
+
+```bash
+cp .env.example .env          # AUTH_PROVIDER=mock for local dev
+uvicorn backend.app.main:app --reload    # http://localhost:8000
+```
+
+With `AUTH_PROVIDER=mock`, `POST /api/v1/auth/login {"email": "..."}` signs you
+in (a signed-cookie session) and creates your workspace. Flow: upload files into
+a group → `POST /api/v1/groups/{group}/remediate` (background job) → poll
+`GET /api/v1/jobs/{id}` → read the report and download the `_a11y` output.
+Interactive docs at `/docs`.
 
 ## Status
 
