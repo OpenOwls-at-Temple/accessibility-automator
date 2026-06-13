@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OpenOwls SDD in Action — A Worked Example</title>
+  <meta name="description" content="A real walkthrough of the OpenOwls Spec-Driven Development process, using the Accessibility Automator project as a worked example." />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --navy:#0B1120; --navy-mid:#111827; --navy-card:#1a2235;
+      --cherry:#E53E3E; --cherry-dim:#C53030; --owl-gold:#D4A843;
+      --white:#FFFFFF; --off-white:#F7F8FA; --muted:#94A3B8;
+      --border:#1E2D45; --text-body:#CBD5E1; --text-head:#F1F5F9;
+      --code-bg:#0D1525; --code-fg:#93C5FD; --green:#6EE7B7; --blue:#93C5FD;
+    }
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+    html{scroll-behavior:smooth;}
+    body{font-family:'Inter',sans-serif;background:var(--navy);color:var(--text-body);font-size:16px;line-height:1.7;}
+
+    nav{background:var(--navy);border-bottom:1px solid var(--border);padding:0 48px;display:flex;align-items:center;justify-content:space-between;height:60px;position:sticky;top:0;z-index:100;}
+    .nav-brand{font-size:18px;font-weight:700;color:var(--white);text-decoration:none;letter-spacing:-0.01em;}
+    .nav-links{display:flex;gap:28px;list-style:none;}
+    .nav-links a{font-size:14px;color:var(--muted);text-decoration:none;transition:color .2s;}
+    .nav-links a:hover{color:var(--white);}
+
+    .hero{background:var(--navy-mid);border-bottom:1px solid var(--border);padding:80px 48px 72px;text-align:center;}
+    .eyebrow{display:inline-block;font-size:11px;font-weight:600;letter-spacing:.15em;text-transform:uppercase;color:var(--cherry);background:rgba(229,62,62,.1);border:1px solid rgba(229,62,62,.25);padding:4px 14px;border-radius:999px;margin-bottom:24px;}
+    .hero h1{font-size:clamp(32px,5vw,52px);font-weight:700;color:var(--white);line-height:1.15;letter-spacing:-0.02em;max-width:760px;margin:0 auto 20px;}
+    .hero h1 span{color:var(--cherry);}
+    .hero p{font-size:18px;color:var(--muted);max-width:620px;margin:0 auto;}
+    .hero .sub{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--owl-gold);margin-top:22px;letter-spacing:.04em;}
+
+    .page{max-width:920px;margin:0 auto;padding:72px 32px 96px;}
+    section{margin-bottom:78px;}
+    .section-tag{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--cherry);margin-bottom:8px;}
+    h2{font-size:28px;font-weight:700;color:var(--text-head);letter-spacing:-0.02em;margin-bottom:14px;padding-bottom:16px;border-bottom:1px solid var(--border);}
+    h2 span{color:var(--cherry);}
+    h3{font-size:17px;font-weight:600;color:var(--text-head);margin:26px 0 8px;}
+    p{color:var(--text-body);margin-bottom:14px;}
+    a.inline{color:var(--code-fg);text-decoration:none;}
+
+    /* timeline */
+    .timeline{list-style:none;position:relative;margin:28px 0 0;padding-left:0;}
+    .timeline::before{content:"";position:absolute;left:25px;top:8px;bottom:8px;width:2px;background:var(--border);}
+    .tl-item{position:relative;display:grid;grid-template-columns:54px 1fr;gap:22px;margin-bottom:30px;align-items:start;}
+    .tl-num{width:52px;height:52px;border-radius:50%;background:var(--cherry);color:#fff;font-weight:700;font-size:17px;display:flex;align-items:center;justify-content:center;flex-shrink:0;z-index:1;}
+    .tl-body{background:var(--navy-card);border:1px solid var(--border);border-radius:12px;padding:18px 22px;}
+    .tl-body h3{margin-top:0;}
+    .tl-body p{font-size:14px;margin-bottom:8px;}
+    .quote{border-left:3px solid var(--owl-gold);background:rgba(212,168,67,.06);padding:8px 14px;margin:10px 0;font-size:13px;color:var(--muted);font-style:italic;border-radius:0 6px 6px 0;}
+    .quote b{color:var(--text-head);font-style:normal;}
+    .principle{margin-top:12px;font-size:13px;background:rgba(110,231,183,.08);border:1px solid rgba(110,231,183,.22);border-radius:8px;padding:10px 14px;color:var(--text-body);}
+    .principle b{color:var(--green);}
+
+    code{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--code-fg);background:rgba(147,197,253,.08);padding:1px 5px;border-radius:3px;}
+
+    table{width:100%;border-collapse:collapse;margin:20px 0;font-size:14px;}
+    th{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);text-align:left;padding:10px 14px;border-bottom:1px solid var(--border);}
+    td{padding:12px 14px;border-bottom:1px solid var(--border);color:var(--text-body);vertical-align:top;}
+    td:first-child{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--cherry);white-space:nowrap;}
+    .badge{display:inline-block;font-size:10px;font-weight:600;padding:2px 9px;border-radius:999px;white-space:nowrap;}
+    .b-done{background:rgba(110,231,183,.15);color:var(--green);}
+
+    .cards{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:22px 0;}
+    .card{background:var(--navy-card);border:1px solid var(--border);border-radius:12px;padding:18px 20px;}
+    .card h4{font-size:14px;color:var(--text-head);margin-bottom:6px;}
+    .card p{font-size:13px;color:var(--muted);margin:0;line-height:1.6;}
+    .card .ic{font-size:18px;margin-bottom:6px;display:block;}
+
+    .takeaways{counter-reset:t;list-style:none;margin:20px 0;}
+    .takeaways li{counter-increment:t;display:grid;grid-template-columns:38px 1fr;gap:16px;margin-bottom:16px;align-items:start;}
+    .takeaways li::before{content:counter(t);width:34px;height:34px;border-radius:8px;background:rgba(229,62,62,.14);color:var(--cherry);font-weight:700;display:flex;align-items:center;justify-content:center;font-size:15px;}
+    .takeaways b{color:var(--text-head);}
+
+    .flow{display:flex;flex-wrap:wrap;align-items:center;gap:10px;background:var(--code-bg);border:1px solid var(--border);border-radius:12px;padding:20px 22px;margin:18px 0;font-family:'JetBrains Mono',monospace;font-size:12px;}
+    .flow .step{background:var(--navy-card);border:1px solid var(--border);border-radius:8px;padding:7px 12px;color:var(--code-fg);}
+    .flow .arrow{color:var(--owl-gold);}
+
+    footer{background:var(--navy-mid);border-top:1px solid var(--border);text-align:center;padding:36px 32px;font-size:13px;color:var(--muted);}
+    footer a{color:var(--muted);text-decoration:none;}
+    footer span{color:var(--owl-gold);}
+
+    @media(max-width:640px){
+      nav{padding:0 20px;} .nav-links{display:none;}
+      .hero{padding:56px 24px 48px;} .page{padding:48px 20px 64px;}
+      .cards{grid-template-columns:1fr;}
+      .tl-item{grid-template-columns:42px 1fr;gap:14px;} .timeline::before{left:21px;}
+      .tl-num{width:42px;height:42px;font-size:15px;}
+    }
+  </style>
+</head>
+<body>
+
+<nav>
+  <a class="nav-brand" href="https://openowls-at-temple.github.io/">🦉 OpenOwls</a>
+  <ul class="nav-links">
+    <li><a href="getting-started.html">Getting Started</a></li>
+    <li><a href="#timeline">The Walkthrough</a></li>
+    <li><a href="#files">The Files</a></li>
+    <li><a href="#takeaways">Takeaways</a></li>
+  </ul>
+</nav>
+
+<div class="hero">
+  <div class="eyebrow">OpenOwls SDD · Worked Example</div>
+  <h1>Spec-Driven Development <span>in Action</span></h1>
+  <p>How a single planning conversation turned a fuzzy idea into a complete, code-ready specification — before a single line of code was written.</p>
+  <div class="sub">Case study: the “Accessibility Automator” project</div>
+</div>
+
+<div class="page">
+
+  <!-- INTRO -->
+  <section>
+    <div class="section-tag">The Idea</div>
+    <h2>From a <span>vague idea</span> to a plan</h2>
+    <p>A faculty member started with a real problem: at Temple, lecture files uploaded to Canvas are scored for accessibility by a tool called <b>YuJa Panorama</b>, and fixing every flagged issue by hand is slow and tedious. The idea was simple to say but fuzzy to build: <i>“an app that automatically makes my PowerPoint and PDF files accessible.”</i></p>
+    <p>Instead of jumping straight to code, they followed the <b>OpenOwls SDD process</b>: talk the idea through, make the decisions explicit, and write them into the <code>ai_specs/</code> files. Only then does the project move to Claude Code for implementation. This page replays that conversation so you can see <i>how</i> the specs got built — and why each step matters.</p>
+    <div class="flow">
+      <span class="step">Fuzzy idea</span>
+      <span class="arrow">→</span>
+      <span class="step">Clarifying questions</span>
+      <span class="arrow">→</span>
+      <span class="step">Decisions + research</span>
+      <span class="arrow">→</span>
+      <span class="step">ai_specs/ files</span>
+      <span class="arrow">→</span>
+      <span class="step">Claude Code builds it</span>
+    </div>
+  </section>
+
+  <!-- TIMELINE -->
+  <section id="timeline">
+    <div class="section-tag">The Walkthrough</div>
+    <h2>How the <span>spec was built</span>, step by step</h2>
+    <p>Each step below is a real moment from the planning session. The green box names the SDD principle it demonstrates.</p>
+
+    <ol class="timeline">
+
+      <li class="tl-item">
+        <div class="tl-num">1</div>
+        <div class="tl-body">
+          <h3>Pin down what the app actually is</h3>
+          <p>Before anything else: who is this for, and what does it do? The discussion settled on a clear one-liner — a standalone web app that remediates faculty PPTX/PDF files against WCAG so they score near-100 in Canvas.</p>
+          <div class="principle"><b>SDD principle:</b> Start with <code>overview.md</code> — the problem, the user, and the goal — before touching features or tech.</div>
+        </div>
+      </li>
+
+      <li class="tl-item">
+        <div class="tl-num">2</div>
+        <div class="tl-body">
+          <h3>Ask the questions that change the design</h3>
+          <p>Rather than assuming, the big forks were raised out loud: Should the app integrate with Canvas, or just produce fixed files? Web app or desktop? Which file types first?</p>
+          <div class="quote"><b>Decision:</b> A standalone tool (Option A) for Phase 1; the Canvas integration is parked for Phase 3.</div>
+          <div class="principle"><b>SDD principle:</b> Resolve ambiguity <i>before</i> writing specs. A good question now saves a rewrite later.</div>
+        </div>
+      </li>
+
+      <li class="tl-item">
+        <div class="tl-num">3</div>
+        <div class="tl-body">
+          <h3>Scope a real MVP with phases</h3>
+          <p>The temptation is to build everything at once. Instead, features were sorted into three phases — and the sponsor was reminded when Phase 1 was getting large.</p>
+          <div class="quote"><b>Phase 1:</b> PPTX + PDF remediation, sign-in, file workspace, the checker, AI alt-text, and the report.<br><b>Phase 2:</b> Word, video, batch, human review.<br><b>Phase 3:</b> Canvas + Panorama integration.</div>
+          <div class="principle"><b>SDD principle:</b> <code>features.md</code> forces a real MVP. A good Phase 1 is one workflow, working end-to-end.</div>
+        </div>
+      </li>
+
+      <li class="tl-item">
+        <div class="tl-num">4</div>
+        <div class="tl-body">
+          <h3>Catch conflicts between spec files</h3>
+          <p>When the sponsor added Microsoft SSO and per-user folders, that <i>contradicted</i> a non-goal already written in <code>overview.md</code> (“no authentication, stateless, no storage”). The conflict was flagged and resolved — auth moved in-scope, behind a swappable interface so it wouldn’t block the build.</p>
+          <div class="principle"><b>SDD principle:</b> The specs must stay consistent with each other. Flag conflicts and fix them — never code over them.</div>
+        </div>
+      </li>
+
+      <li class="tl-item">
+        <div class="tl-num">5</div>
+        <div class="tl-body">
+          <h3>Research the domain before designing</h3>
+          <p>The team paused to look things up: the standard is <b>WCAG 2.1/2.2 AA</b>; Temple’s checker is <b>YuJa Panorama</b>; scoring is a <i>weighted average</i> by severity. A key finding — Panorama often misses PDF issues — became a documented constraint.</p>
+          <div class="principle"><b>SDD principle:</b> <code>domain-knowledge.md</code> captures the facts the code depends on, so the AI doesn’t guess.</div>
+        </div>
+      </li>
+
+      <li class="tl-item">
+        <div class="tl-num">6</div>
+        <div class="tl-body">
+          <h3>Design the architecture and justify the decisions</h3>
+          <p>The backend was designed around a decoupled engine with per-format rules and a shared scorer, plus per-user storage and a clear set of API endpoints. Each major choice was written down <i>with its reason</i>, not just the choice itself.</p>
+          <div class="principle"><b>SDD principle:</b> <code>architecture-planning.md</code> is where you make and justify design decisions before writing code.</div>
+        </div>
+      </li>
+
+      <li class="tl-item">
+        <div class="tl-num">7</div>
+        <div class="tl-body">
+          <h3>Treat the LLM as a first-class component</h3>
+          <p>The AI’s job was defined precisely: caption images and name untitled slides — returning a <i>confidence score</i> so low-confidence output becomes a flagged placeholder instead of a fake fix. It sits behind an OpenAI-compatible interface so the model can be swapped.</p>
+          <div class="principle"><b>SDD principle:</b> <code>llm-integration.md</code> makes prompts, fallbacks, and evaluation explicit — not an afterthought.</div>
+        </div>
+      </li>
+
+      <li class="tl-item">
+        <div class="tl-num">8</div>
+        <div class="tl-body">
+          <h3>Set the rules, then record the state</h3>
+          <p>Finally, <code>conventions.md</code> (naming, testing, the one-way engine dependency) and <code>deployment.md</code> (Render, env vars, SSO setup) were filled in — and <code>progress.md</code> was updated so the next session starts informed.</p>
+          <div class="principle"><b>SDD principle:</b> Update <code>progress.md</code> every session — Claude Code has no memory between sessions.</div>
+        </div>
+      </li>
+    </ol>
+  </section>
+
+  <!-- A HONESTY HIGHLIGHT -->
+  <section>
+    <div class="section-tag">A Design Value</div>
+    <h2>An honest tool, by <span>design</span></h2>
+    <p>One theme ran through the whole conversation: a placeholder like “image” can make the checker say 100%, but it doesn’t actually help a student using a screen reader. So the spec bakes in honesty — the report shows <b>two numbers</b>:</p>
+    <div class="cards">
+      <div class="card"><span class="ic">✅</span><h4>Checker-passing score</h4><p>What Canvas/Panorama will report — placeholders count as passing.</p></div>
+      <div class="card"><span class="ic">🎯</span><h4>Truly-remediated score</h4><p>Excludes placeholders. The gap is the human follow-up list.</p></div>
+    </div>
+    <p>This is exactly the kind of value judgment that belongs in the specs, where everyone can see and agree to it — long before it’s buried in code.</p>
+  </section>
+
+  <!-- FILES -->
+  <section id="files">
+    <div class="section-tag">The Deliverable</div>
+    <h2>The seven <span>spec files</span> we produced</h2>
+    <p>Every decision above landed in a file. This is the complete, code-ready spec set handed to Claude Code:</p>
+    <table>
+      <thead><tr><th>File</th><th>What it captures for this project</th><th></th></tr></thead>
+      <tbody>
+        <tr><td>overview.md</td><td>The app, its users, goals/non-goals, and the React + FastAPI stack</td><td><span class="badge b-done">done</span></td></tr>
+        <tr><td>features.md</td><td>Phase 1/2/3 features with acceptance criteria and the WCAG check list</td><td><span class="badge b-done">done</span></td></tr>
+        <tr><td>domain-knowledge.md</td><td>WCAG, YuJa Panorama, scoring, and the “checker vs. truly accessible” constraint</td><td><span class="badge b-done">done</span></td></tr>
+        <tr><td>architecture-planning.md</td><td>The decoupled engine, per-format rules (P1–P13 / D1–D21), API, storage, config</td><td><span class="badge b-done">done</span></td></tr>
+        <tr><td>llm-integration.md</td><td>Alt-text/title prompts, confidence→placeholder fallback, evaluation</td><td><span class="badge b-done">done</span></td></tr>
+        <tr><td>conventions.md</td><td>Naming, testing, git, and the one-way engine dependency rule</td><td><span class="badge b-done">done</span></td></tr>
+        <tr><td>deployment.md</td><td>Render hosting, env vars, Tesseract, and Azure SSO setup</td><td><span class="badge b-done">done</span></td></tr>
+      </tbody>
+    </table>
+    <p style="font-size:13px;color:var(--muted)">Plus the two root files: <code>CLAUDE.md</code> (tells Claude Code what to read, in order) and <code>progress.md</code> (the living session log).</p>
+  </section>
+
+  <!-- TAKEAWAYS -->
+  <section id="takeaways">
+    <div class="section-tag">For Students</div>
+    <h2>What to <span>take away</span></h2>
+    <ol class="takeaways">
+      <li><div><b>Specs before code.</b> The hardest decisions — scope, architecture, the LLM’s role — were all made in plain language first, when changing course was cheap.</div></li>
+      <li><div><b>Ask before you assume.</b> Each clarifying question removed a wrong path the project could have gone down.</div></li>
+      <li><div><b>Phase ruthlessly.</b> Everything that wasn’t essential to one working workflow got pushed to Phase 2 or 3.</div></li>
+      <li><div><b>Keep the specs consistent.</b> When two files disagreed, that was a bug to fix in the docs — not something to discover later in the code.</div></li>
+      <li><div><b>Ground it in facts.</b> Real research (WCAG, Panorama) turned guesses into documented domain knowledge.</div></li>
+    </ol>
+    <p style="margin-top:18px">The payoff: when this project opens in Claude Code, the AI already knows what to build, how to build it, and what “done” looks like — because the thinking is already written down.</p>
+  </section>
+
+</div>
+
+<footer>
+  <span>🦉 OpenOwls</span> · Temple University · Department of Computer &amp; Information Sciences<br />
+  A worked example of the OpenOwls SDD process · <a href="getting-started.html">Read the Getting Started guide →</a><br /><br />
+  © 2026 OpenOwls at Temple University
+</footer>
+
+</body>
+</html>
