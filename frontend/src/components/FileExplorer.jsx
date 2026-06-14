@@ -1,0 +1,143 @@
+import { useCallback, useEffect, useState } from "react";
+import { Link } from "react-router-dom";
+import { api } from "../services/api.js";
+import { useJobStatus } from "../hooks/useJobStatus.js";
+import { scoreBand } from "../utils/score.js";
+import UploadModal from "./UploadModal.jsx";
+
+function Score({ value }) {
+  if (value == null) return <span className="muted">—</span>;
+  return <span className={`score ${scoreBand(value)}`}>{value}</span>;
+}
+
+export default function FileExplorer() {
+  const [groups, setGroups] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [uploadOpen, setUploadOpen] = useState(false);
+  const [activeJob, setActiveJob] = useState(null); // { group, id }
+
+  const load = useCallback(async () => {
+    setError(null);
+    try {
+      const summaries = await api.listGroups();
+      const details = await Promise.all(summaries.map((g) => api.getGroup(g.name)));
+      setGroups(details);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const jobStatus = useJobStatus(activeJob?.id, () => {
+    setActiveJob(null);
+    load();
+  });
+
+  const onFix = async (group) => {
+    try {
+      const { job_id } = await api.remediate(group);
+      setActiveJob({ group, id: job_id });
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  if (loading) return <p className="muted">Loading your workspace…</p>;
+
+  return (
+    <div>
+      <div className="row spread" style={{ marginBottom: 16 }}>
+        <h2 style={{ color: "var(--text-head)", margin: 0 }}>Your files</h2>
+        <button onClick={() => setUploadOpen(true)}>Upload</button>
+      </div>
+
+      {error && <p className="error">{error}</p>}
+
+      {groups.length === 0 && (
+        <div className="card muted">
+          No files yet. Click <strong>Upload</strong> to add a group of lecture materials.
+        </div>
+      )}
+
+      {groups.map((group) => {
+        const busy = activeJob?.group === group.name;
+        return (
+          <div className="card" key={group.name}>
+            <div className="group-header">
+              <h3>{group.name}</h3>
+              <button onClick={() => onFix(group.name)} disabled={!!activeJob}>
+                {busy
+                  ? `Fixing… ${jobStatus ? Math.round(jobStatus.progress * 100) : 0}%`
+                  : "Fix"}
+              </button>
+            </div>
+            <table className="files">
+              <thead>
+                <tr>
+                  <th>File</th>
+                  <th>Status</th>
+                  <th>Before</th>
+                  <th>After</th>
+                  <th>Truly fixed</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {group.files.map((file) => (
+                  <tr key={file.name}>
+                    <td>{file.name}</td>
+                    <td>
+                      <span className={`badge ${file.status}`}>{file.status}</span>
+                    </td>
+                    <td>
+                      <Score value={file.pre_fix_score} />
+                    </td>
+                    <td>
+                      <Score value={file.post_fix_score} />
+                    </td>
+                    <td>
+                      <Score value={file.truly_remediated_score} />
+                    </td>
+                    <td className="row" style={{ gap: 10 }}>
+                      <a href={api.downloadUrl(group.name, file.name, "input")}>original</a>
+                      {file.has_output && (
+                        <>
+                          <a href={api.downloadUrl(group.name, file.name, "output")}>
+                            remediated
+                          </a>
+                          <Link
+                            to={`/groups/${encodeURIComponent(group.name)}/files/${encodeURIComponent(
+                              file.name
+                            )}/report`}
+                          >
+                            report
+                          </Link>
+                        </>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        );
+      })}
+
+      {uploadOpen && (
+        <UploadModal
+          onClose={() => setUploadOpen(false)}
+          onUploaded={() => {
+            setUploadOpen(false);
+            load();
+          }}
+        />
+      )}
+    </div>
+  );
+}

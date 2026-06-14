@@ -1,0 +1,276 @@
+/* OpenOwls palette (matches docs/getting-started.html) */
+:root {
+  --navy: #0b1120;
+  --navy-mid: #111827;
+  --navy-card: #1a2235;
+  --cherry: #e53e3e;
+  --owl-gold: #d4a843;
+  --border: #1e2d45;
+  --text-body: #cbd5e1;
+  --text-head: #f1f5f9;
+  --muted: #94a3b8;
+  --green: #34d399;
+  --yellow: #fbbf24;
+  --red: #f87171;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  background: var(--navy);
+  color: var(--text-body);
+  line-height: 1.5;
+}
+
+a {
+  color: var(--owl-gold);
+}
+
+button {
+  font: inherit;
+  cursor: pointer;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 16px;
+  background: var(--cherry);
+  color: #fff;
+  font-weight: 600;
+}
+
+button:hover {
+  filter: brightness(1.08);
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+button.secondary {
+  background: var(--navy-card);
+  color: var(--text-head);
+  border: 1px solid var(--border);
+}
+
+input {
+  font: inherit;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--navy-card);
+  color: var(--text-head);
+}
+
+/* ── App shell ── */
+.app-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 32px;
+  height: 60px;
+  background: var(--navy);
+  border-bottom: 1px solid var(--border);
+}
+
+.app-nav .brand {
+  font-weight: 700;
+  color: #fff;
+  font-size: 18px;
+}
+
+.page {
+  max-width: 980px;
+  margin: 0 auto;
+  padding: 32px;
+}
+
+.card {
+  background: var(--navy-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px 24px;
+  margin-bottom: 20px;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.spread {
+  justify-content: space-between;
+}
+
+/* ── Sign in ── */
+.signin {
+  max-width: 420px;
+  margin: 80px auto;
+  text-align: center;
+}
+
+.signin h1 {
+  color: var(--text-head);
+}
+
+.signin form {
+  display: flex;
+  gap: 8px;
+  margin-top: 20px;
+}
+
+.signin input {
+  flex: 1;
+}
+
+/* ── File explorer ── */
+.group-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.group-header h3 {
+  margin: 0;
+  color: var(--text-head);
+}
+
+table.files {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+table.files th {
+  text-align: left;
+  color: var(--muted);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+table.files td {
+  padding: 10px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+
+.score {
+  font-weight: 700;
+}
+
+.score.green {
+  color: var(--green);
+}
+.score.yellow {
+  color: var(--yellow);
+}
+.score.red {
+  color: var(--red);
+}
+
+.badge {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.15);
+  color: var(--muted);
+}
+
+.badge.complete {
+  background: rgba(52, 211, 153, 0.15);
+  color: var(--green);
+}
+
+/* ── Modal ── */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+}
+
+.modal {
+  background: var(--navy-mid);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 28px;
+  width: 460px;
+  max-width: 92vw;
+}
+
+.modal h3 {
+  margin-top: 0;
+  color: var(--text-head);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+
+.field label {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.error {
+  color: var(--red);
+  font-size: 14px;
+}
+
+/* ── Report ── */
+.scores {
+  display: flex;
+  gap: 16px;
+  margin: 16px 0;
+}
+
+.score-box {
+  flex: 1;
+  text-align: center;
+  background: var(--navy-card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px;
+}
+
+.score-box .num {
+  font-size: 32px;
+  font-weight: 700;
+  color: var(--text-head);
+}
+
+.fix-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.fix-list li {
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.fix-list code {
+  color: var(--owl-gold);
+}

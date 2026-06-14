@@ -11,7 +11,7 @@ and the specs in [`ai_specs/`](ai_specs/).
 |------|------------|
 | `remediator/` | The engine: audit → fix → re-score → report. Standalone; never imports `backend/`. |
 | `backend/` | FastAPI web layer (`app/`) + CLI. May import `remediator/`. |
-| `frontend/` | React + Vite SPA (not started yet). |
+| `frontend/` | React + Vite SPA (sign-in, file explorer, Fix, report viewer). |
 | `ai_specs/` | The SDD spec set (source of truth). |
 | `config.yaml` | Non-secret runtime config. Secrets live in env vars (`.env.example`). |
 
@@ -46,9 +46,22 @@ a group → `POST /api/v1/groups/{group}/remediate` (background job) → poll
 `GET /api/v1/jobs/{id}` → read the report and download the `_a11y` output.
 Interactive docs at `/docs`.
 
+## Run the web UI
+
+```bash
+cd frontend
+cp .env.example .env          # VITE_API_BASE_URL=http://localhost:8000
+npm install
+npm run dev                   # http://localhost:5173
+```
+
+Sign in with any email (mock auth), upload a group of files, click **Fix**, watch
+progress, then open the report and download the remediated output.
+
 ## Status
 
-Phase 1. PPTX path complete end-to-end (P1–P13). PDF path complete for metadata
+Phase 1 feature-complete. PPTX path end-to-end (P1–P13). PDF path: metadata
 fixes (D2 title, D12 language) with honest detection/reporting of the structural
-checks (D1/D3/D8/D9–D11/D16); PDF OCR and structure-tree synthesis are deferred
-follow-ups. The FastAPI app and React UI are next — see [`progress.md`](progress.md).
+checks (D1/D3/D8/D9–D11/D16). FastAPI backend (mock auth, per-user storage,
+background jobs) and a React UI wired to it. Deferred: PDF OCR + structure-tree
+synthesis, real Azure/Temple SSO — see [`progress.md`](progress.md).

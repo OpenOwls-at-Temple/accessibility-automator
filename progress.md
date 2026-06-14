@@ -6,12 +6,12 @@
 ## Current Phase
 <!-- Which phase are we actively working on? e.g. Phase 1 -->
 
-**Active Phase:** Phase 1 — engine (PPTX + PDF) and the FastAPI backend complete. Next: the React UI.
+**Active Phase:** Phase 1 — engine (PPTX + PDF), FastAPI backend, and the React frontend are all in. Phase 1 feature-complete (pending real Azure SSO + PDF OCR follow-ups).
 
 ## Status Summary
 <!-- One or two sentences describing where the project stands right now -->
 
-The `remediator/` engine audits/fixes/re-scores/reports **PPTX (P1–P13) and PDF** files, and the **FastAPI backend** now wraps it: mock auth (signed-cookie session), per-user file storage with path-traversal protection, grouped uploads (PPTX/PDF), background remediation jobs with status polling, reports (JSON/HTML), placeholder sign-off, and a read-only config endpoint. Runs via `uvicorn backend.app.main:app`. 41 tests pass (engine + API, incl. auth-isolation); `black`/`ruff` clean. **Deferred follow-ups:** PDF OCR (D8) and PDF structure-tree synthesis/alt-text (D1/D3), and real Azure SSO (mock used for dev). Next: the React UI.
+Full stack now exists. The `remediator/` engine audits/fixes/re-scores/reports **PPTX (P1–P13) and PDF**; the **FastAPI backend** wraps it (mock auth, per-user storage with path-traversal protection, grouped uploads, background jobs + polling, reports, sign-off); and the **React (Vite) frontend** provides sign-in, the workspace home page (top panel + file explorer), upload, the **Fix** button with live job progress, and a report viewer with placeholder sign-off — all wired to the API with cookie auth. Backend/engine: 41 Python tests pass. Frontend: builds clean, ESLint clean, 4 Vitest tests pass; dev server serves the app. **Not yet done:** a full in-browser click-through (build/lint/unit verified, but no headless-browser E2E yet). **Deferred follow-ups:** PDF OCR (D8), PDF structure-tree/alt-text (D1/D3), real Azure/Temple SSO.
 
 ---
 
@@ -33,13 +33,7 @@ The `remediator/` engine audits/fixes/re-scores/reports **PPTX (P1–P13) and PD
 - [x] Tests — scorer, PPTX + PDF rules and fixers/pipeline (25 passing); fixtures built programmatically (reportlab + pikepdf) in `conftest.py` — 2026-06-13
 - [x] FastAPI backend (`backend/app/`) — settings, swappable auth (`MockAuthProvider` + `AzureOIDCProvider` stub) with HMAC signed-cookie sessions, `StorageService` (per-user, path-traversal-safe, atomic metadata writes), `JobManager` (threaded background jobs + polling), Pydantic schemas, routes (auth/groups/files/jobs/reports/config), `main.create_app()` factory + CORS, `/health` — 2026-06-13
 - [x] Backend tests — auth, workspace, full remediation flow, auth-isolation (a user cannot reach another user's files/jobs); 41 total passing — 2026-06-13
-
----
-
-## In Progress
-<!-- What is actively being worked on right now? -->
-
-- [ ] _(none — engine + backend landed)_
+- [x] React frontend (`frontend/`, Vite) — `services/api.js` (cookie auth), `useAuth`/`useJobStatus` hooks, components (SignInForm, TopPanel, FileExplorer, UploadModal, ReportViewer), pages (HomePage, ReportPage), OpenOwls-themed CSS; ESLint + Prettier + Vitest config; 4 tests passing; builds clean — 2026-06-14
 
 ---
 
@@ -55,9 +49,9 @@ The `remediator/` engine audits/fixes/re-scores/reports **PPTX (P1–P13) and PD
 ## Up Next
 <!-- The next 2-3 tasks to tackle in the current phase -->
 
+- [ ] Full-stack browser E2E: run backend + frontend together and click through sign-in → upload → Fix → report (headless browser); add a couple of frontend integration tests for FileExplorer/ReportViewer against a mocked API.
 - [ ] PDF OCR (D8): add a text layer to scanned PDFs (Tesseract via pytesseract/pdf2image or ocrmypdf as a subprocess); guard on binary availability and degrade to report-only otherwise.
 - [ ] PDF structure (D1/D3/D4/D5/D7): synthesize a logical structure tree and write `/Alt` on figures (evaluate Adobe Auto-Tag API; likely partly Phase 2 per the risk note).
-- [ ] React UI (`frontend/`): sign-in, file explorer, upload, **Fix** button, status polling, report viewer, sign-off modal — wired to the API.
 - [ ] Wire real `AzureOIDCProvider` (OAuth2/OIDC redirect + tenant restriction) once Temple IT app registration lands.
 - [ ] Validate real PPTX captioning against a live OpenAI-compatible endpoint (set `LLM_*`); spot-check alt-text quality per `llm-integration.md` evaluation targets.
 
@@ -77,6 +71,7 @@ The `remediator/` engine audits/fixes/re-scores/reports **PPTX (P1–P13) and PD
 ## Session Log
 <!-- Brief note after each work session. Most recent at the top. -->
 
+- **2026-06-14** — Built the React (Vite) frontend on a branch stacked on the backend branch. `services/api.js` talks to the API with `credentials: "include"` (cookie auth); `useAuth` context checks the session on mount; `useJobStatus` polls jobs ~2s. UI: SignInForm (mock login), HomePage with TopPanel (name/email) + FileExplorer (groups/files, before→after→truly-fixed scores, **Fix** button with live progress, download original/remediated, report link), UploadModal (group + PPTX/PDF), and ReportPage/ReportViewer (three scores + genuine/placeholder/manual sections with placeholder Acknowledge → POST signoff). OpenOwls-themed CSS. ESLint/Prettier/Vitest configured; 4 tests pass; `vite build` and `eslint` clean; dev server serves the app and the entry module compiles. Did **not** yet do a headless-browser click-through (added to Up Next).
 - **2026-06-13 (impl 3)** — Built the FastAPI backend (branch stacked on the PDF branch). `backend/app/`: env-driven settings; swappable auth (`MockAuthProvider` active, `AzureOIDCProvider` stub) behind HMAC signed-cookie sessions (stdlib, no extra dep); `StorageService` with strict name validation (no `..`/separators), per-user input/output dirs, `_a11y` outputs, and atomic `metadata.json` writes; `JobManager` running remediation on a thread pool with status polling; Pydantic schemas; routes for auth/groups/files(upload+download+signoff)/jobs/reports/config + `/health`; `create_app()` factory with CORS and state on `app.state` for testability. Added 16 API tests incl. auth-isolation (a user can't reach another's files or jobs); 41 total pass; black/ruff clean. Smoke-tested live via uvicorn (login→upload→list over real HTTP). No LLM in tests → deterministic placeholder behavior.
 - **2026-06-13 (impl 2)** — Built the PDF path on a branch stacked on the PPTX branch. `pdf_handler.py` (pikepdf) opens files, handles encrypted/corrupted gracefully (copies original through on save), and exposes helpers for title/language/tagging/images/scanned-page/link detection (scanned detection parses the content stream for text operators, since reportlab adds fonts to image-only pages). `pdf_rules.py` audits D1/D2/D3/D8/D9–D11/D12/D16; `pdf_fixer.py` auto-fixes D2+D12 and honestly reports the rest as needs-manual. Registered `.pdf` in the pipeline. Added 9 PDF tests (reportlab/pikepdf fixtures); 25 total pass; black/ruff clean. Also corrected the CLI summary (was counting `not_fixed` as genuine fixes). Verified CLI on a demo PDF: 55 → 82, title+lang written. **Scoped out for now (flagged to sponsor):** real OCR and structure-tree synthesis — they need Tesseract and more than pikepdf provides.
 - **2026-06-13 (impl 1)** — Scaffolded the repo and built the full PPTX remediation path. Engine: models, YAML config, weighted scorer (severe-cap + placeholder-aware), PPTX handler with OOXML alt-text/decorative helpers, P1–P13 audit rules, deterministic + AI fixers, OpenAI-compatible LLM provider (httpx, no vendor SDK) with placeholder fallback, pipeline, and JSON/HTML reporter. CLI `fix` runs it end-to-end. 16 tests pass; black/ruff clean. Verified on a demo deck (44 → 100 checker / 75 truly-remediated in placeholder mode) and confirmed the output reopens as valid PPTX. Used Python 3.12 venv (system Python is 3.9; conventions require 3.11+). Added a small heuristic: bare-filename alt text (e.g. python-pptx's default `image.png`) is treated as missing.
