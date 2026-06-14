@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Accessibility Automator — Application User Guide</title>
+  <meta name="description" content="How to run Accessibility Automator: remediate a PowerPoint and read the before/after accessibility scores." />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    /* ── TOKENS (matched to the OpenOwls site / getting-started.html) ── */
+    :root {
+      --navy:       #0B1120;
+      --navy-mid:   #111827;
+      --navy-card:  #1a2235;
+      --cherry:     #E53E3E;
+      --owl-gold:   #D4A843;
+      --white:      #FFFFFF;
+      --muted:      #94A3B8;
+      --border:     #1E2D45;
+      --text-body:  #CBD5E1;
+      --text-head:  #F1F5F9;
+      --code-bg:    #0D1525;
+      --code-fg:    #93C5FD;
+      --green:      #34D399;
+      --yellow:     #FBBF24;
+      --red:        #F87171;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--navy);
+      color: var(--text-body);
+      font-size: 16px;
+      line-height: 1.7;
+    }
+
+    /* ── NAV ── */
+    nav {
+      background: var(--navy);
+      border-bottom: 1px solid var(--border);
+      padding: 0 48px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 60px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .nav-brand { font-size: 18px; font-weight: 700; color: var(--white); text-decoration: none; }
+    .nav-links { display: flex; gap: 28px; list-style: none; }
+    .nav-links a { font-size: 14px; color: var(--muted); text-decoration: none; transition: color .2s; }
+    .nav-links a:hover { color: var(--white); }
+
+    /* ── HERO ── */
+    .hero {
+      background: var(--navy-mid);
+      border-bottom: 1px solid var(--border);
+      padding: 72px 48px 64px;
+      text-align: center;
+    }
+    .eyebrow {
+      display: inline-block; font-size: 11px; font-weight: 600;
+      letter-spacing: .15em; text-transform: uppercase; color: var(--cherry);
+      background: rgba(229,62,62,.1); border: 1px solid rgba(229,62,62,.25);
+      padding: 4px 14px; border-radius: 999px; margin-bottom: 22px;
+    }
+    .hero h1 {
+      font-size: clamp(30px, 5vw, 48px); font-weight: 700; color: var(--white);
+      line-height: 1.15; letter-spacing: -.02em; max-width: 720px; margin: 0 auto 18px;
+    }
+    .hero h1 span { color: var(--cherry); }
+    .hero p { font-size: 18px; color: var(--muted); max-width: 600px; margin: 0 auto; }
+
+    /* ── PAGE ── */
+    .page { max-width: 900px; margin: 0 auto; padding: 64px 32px 96px; }
+    section { margin-bottom: 72px; }
+
+    .section-tag {
+      font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: .18em;
+      text-transform: uppercase; color: var(--cherry); margin-bottom: 8px;
+    }
+    h2 {
+      font-size: 26px; font-weight: 700; color: var(--text-head); letter-spacing: -.02em;
+      margin-bottom: 12px; padding-bottom: 16px; border-bottom: 1px solid var(--border);
+    }
+    h2 span { color: var(--cherry); }
+    h3 { font-size: 16px; font-weight: 600; color: var(--text-head); margin: 26px 0 8px; }
+    p { color: var(--text-body); margin-bottom: 14px; }
+
+    code {
+      font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--code-fg);
+      background: rgba(147,197,253,.08); padding: 1px 6px; border-radius: 3px;
+    }
+
+    /* ── CODE BLOCK ── */
+    .code {
+      background: var(--code-bg); border: 1px solid var(--border); border-radius: 10px;
+      padding: 18px 22px; margin: 16px 0; overflow-x: auto;
+      font-family: 'JetBrains Mono', monospace; font-size: 13px; line-height: 1.8;
+      color: #C7D2E5; white-space: pre;
+    }
+    .code .cmt { color: #5B6B86; }
+    .code .out { color: var(--muted); }
+
+    /* ── OPTION CARDS ── */
+    .options { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 24px 0; }
+    .option {
+      background: var(--navy-card); border: 1px solid var(--border);
+      border-radius: 12px; padding: 22px 24px;
+    }
+    .option h3 { margin-top: 0; }
+    .option .tagline { font-size: 13px; color: var(--owl-gold); margin-bottom: 10px; font-weight: 600; }
+    .option p { font-size: 14px; color: var(--muted); margin: 0; }
+
+    /* ── STEPS ── */
+    .steps { list-style: none; counter-reset: step; margin: 24px 0; }
+    .steps li {
+      counter-increment: step; display: grid; grid-template-columns: 40px 1fr;
+      gap: 18px; margin-bottom: 22px; align-items: start;
+    }
+    .steps li::before {
+      content: counter(step); font-size: 15px; font-weight: 700; color: var(--white);
+      background: var(--cherry); width: 40px; height: 40px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    }
+    .steps .step-body { padding-top: 6px; }
+    .steps .step-body strong { color: var(--text-head); }
+
+    /* ── SCORE PILLS ── */
+    .scores { display: flex; gap: 16px; margin: 22px 0; flex-wrap: wrap; }
+    .score-box {
+      flex: 1; min-width: 200px; background: var(--navy-card); border: 1px solid var(--border);
+      border-radius: 12px; padding: 20px; text-align: center;
+    }
+    .score-box .num { font-size: 34px; font-weight: 700; line-height: 1; margin-bottom: 6px; }
+    .score-box .label { font-size: 13px; font-weight: 600; color: var(--text-head); }
+    .score-box .desc { font-size: 12px; color: var(--muted); margin-top: 8px; }
+    .num.before { color: var(--red); }
+    .num.after  { color: var(--green); }
+    .num.truly  { color: var(--yellow); }
+
+    /* ── TIP / NOTE ── */
+    .tip {
+      background: rgba(229,62,62,.07); border: 1px solid rgba(229,62,62,.2);
+      border-left: 3px solid var(--cherry); border-radius: 0 8px 8px 0;
+      padding: 16px 20px; margin: 18px 0; font-size: 14px; color: var(--text-body);
+    }
+    .tip.gold { background: rgba(212,168,67,.08); border-color: rgba(212,168,67,.3); border-left-color: var(--owl-gold); }
+    .tip strong { color: var(--text-head); }
+
+    /* ── TABLE ── */
+    table { width: 100%; border-collapse: collapse; margin: 18px 0; font-size: 14px; }
+    th {
+      font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .08em;
+      color: var(--muted); text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--border);
+    }
+    td { padding: 12px 14px; border-bottom: 1px solid var(--border); color: var(--text-body); vertical-align: top; }
+    td:first-child { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--owl-gold); white-space: nowrap; }
+
+    /* ── FOOTER ── */
+    footer {
+      background: var(--navy-mid); border-top: 1px solid var(--border);
+      text-align: center; padding: 34px 32px; font-size: 13px; color: var(--muted);
+    }
+    footer a { color: var(--muted); text-decoration: none; }
+    footer a:hover { color: var(--white); }
+    footer span { color: var(--owl-gold); }
+
+    @media (max-width: 640px) {
+      nav { padding: 0 20px; } .nav-links { display: none; }
+      .hero { padding: 52px 22px 44px; } .page { padding: 44px 20px 64px; }
+      .options { grid-template-columns: 1fr; }
+      .steps li { grid-template-columns: 34px 1fr; gap: 14px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <a class="nav-brand" href="https://openowls-at-temple.github.io/">🦉 OpenOwls</a>
+  <ul class="nav-links">
+    <li><a href="getting-started.html">SDD Guide</a></li>
+    <li><a href="https://github.com/OpenOwls-at-Temple/accessibility-automator">GitHub</a></li>
+    <li><a href="mailto:openowls@temple.edu">Email Us</a></li>
+  </ul>
+</nav>
+
+<!-- HERO -->
+<div class="hero">
+  <div class="eyebrow">Accessibility Automator · User Guide</div>
+  <h1>Remediate a PowerPoint &amp; read your <span>accessibility scores</span></h1>
+  <p>A short, practical guide to running the app and seeing the before / after improvement on your lecture files.</p>
+</div>
+
+<div class="page">
+
+  <!-- SECTION 1 -->
+  <section>
+    <div class="section-tag">Section 01</div>
+    <h2>Two ways to <span>run it</span></h2>
+    <p>Pick whichever fits what you want to do. Both produce the same remediated file and the same accessibility scores.</p>
+
+    <div class="options">
+      <div class="option">
+        <div class="tagline">Fastest · one command</div>
+        <h3>Command line (CLI)</h3>
+        <p>Point it at a <code>.pptx</code> (or <code>.pdf</code>) and it prints the before/after scores and writes the fixed file plus a report. Best for a quick test.</p>
+      </div>
+      <div class="option">
+        <div class="tagline">Full experience · in your browser</div>
+        <h3>Web app</h3>
+        <p>Sign in, upload files into a course group, click <strong>Fix</strong>, watch progress, and view the report — the way faculty will actually use it.</p>
+      </div>
+    </div>
+
+    <div class="tip">
+      <strong>One-time setup.</strong> The project uses a Python virtual environment at
+      <code>.venv</code> (Python 3.11+). All commands below assume you are in the project
+      root folder <code>accessibility-automator</code>.
+    </div>
+  </section>
+
+  <!-- SECTION 2 -->
+  <section>
+    <div class="section-tag">Section 02</div>
+    <h2>Quick test with the <span>command line</span></h2>
+    <p>From the project root, run the <code>fix</code> command on your PowerPoint:</p>
+
+    <div class="code"><span class="cmt"># from the project root folder</span>
+.venv/bin/python -m backend.cli fix /path/to/your_deck.pptx</div>
+
+    <p>You'll see output like this:</p>
+
+    <div class="code">Remediated: your_deck.pptx -&gt; your_deck_a11y.pptx
+<span class="out">  Score before:               44
+  Score after (checker):      100
+  Score truly remediated:     75
+  Genuine fixes:              3
+  Placeholders (follow-up):   2
+  Needs manual fix:           0
+  Reports: your_deck_a11y.pptx.report.json, your_deck_a11y.pptx.report.html</span></div>
+
+    <p>Three files are written next to your input:</p>
+    <table>
+      <tr><td>your_deck_a11y.pptx</td><td>The remediated PowerPoint — open it in PowerPoint, or re-upload it to Canvas.</td></tr>
+      <tr><td>…_a11y.pptx.report.html</td><td>A readable before/after report. <strong>Open this in any browser.</strong></td></tr>
+      <tr><td>…_a11y.pptx.report.json</td><td>The same report as machine-readable data.</td></tr>
+    </table>
+
+    <div class="tip">
+      <strong>Your original is never touched.</strong> The app always writes a new file with
+      an <code>_a11y</code> suffix and leaves your source file exactly as it was.
+    </div>
+  </section>
+
+  <!-- SECTION 3 -->
+  <section>
+    <div class="section-tag">Section 03</div>
+    <h2>Full experience in the <span>web app</span></h2>
+    <p>The web app needs two pieces running: the <strong>backend</strong> (API) and the
+    <strong>frontend</strong> (the page you click around in). Start each in its own terminal.</p>
+
+    <h3>Terminal 1 — start the backend</h3>
+    <div class="code"><span class="cmt"># from the project root</span>
+cp .env.example .env          <span class="cmt"># first time only (AUTH_PROVIDER=mock)</span>
+.venv/bin/python -m uvicorn backend.app.main:app --reload
+<span class="out"># now serving the API at http://localhost:8000</span></div>
+
+    <h3>Terminal 2 — start the frontend</h3>
+    <div class="code">cd frontend
+cp .env.example .env          <span class="cmt"># first time only</span>
+npm install                   <span class="cmt"># first time only</span>
+npm run dev
+<span class="out"># now serving the app at http://localhost:5173</span></div>
+
+    <h3>Then, in your browser at <code>http://localhost:5173</code></h3>
+    <ol class="steps">
+      <li><div class="step-body"><strong>Sign in</strong> with any email — e.g. <code>you@temple.edu</code> (development mode accepts any address and gives you a private workspace).</div></li>
+      <li><div class="step-body">Click <strong>Upload</strong>, type a <strong>group name</strong> (usually your course code, e.g. <code>CIS4526</code>), and choose your <code>.pptx</code> file.</div></li>
+      <li><div class="step-body">Click the <strong>Fix</strong> button on the group. The button shows live progress while it works.</div></li>
+      <li><div class="step-body">When it finishes, the file row shows three scores: <strong>Before → After → Truly fixed</strong>.</div></li>
+      <li><div class="step-body">Click <strong>report</strong> for the full breakdown, or <strong>remediated</strong> to download the fixed <code>_a11y.pptx</code>.</div></li>
+    </ol>
+
+    <div class="tip gold">
+      <strong>Heads up:</strong> the backend must be running for the web app to work, and its
+      allowed origins already include <code>http://localhost:5173</code> (the default). Stop
+      either server with <code>Ctrl&nbsp;+&nbsp;C</code> in its terminal.
+    </div>
+  </section>
+
+  <!-- SECTION 4 -->
+  <section>
+    <div class="section-tag">Section 04</div>
+    <h2>Understanding the <span>before &amp; after scores</span></h2>
+    <p>Every file gets a score out of 100, the same idea Canvas's accessibility checker
+    (YuJa Panorama) uses — higher is better, weighted so more serious issues cost more.
+    The app shows three numbers:</p>
+
+    <div class="scores">
+      <div class="score-box">
+        <div class="num before">44</div>
+        <div class="label">Before</div>
+        <div class="desc">Your original file, as uploaded.</div>
+      </div>
+      <div class="score-box">
+        <div class="num after">100</div>
+        <div class="label">After (checker)</div>
+        <div class="desc">What Canvas will likely report. Placeholders count as passing.</div>
+      </div>
+      <div class="score-box">
+        <div class="num truly">75</div>
+        <div class="label">Truly remediated</div>
+        <div class="desc">The honest number — placeholders excluded.</div>
+      </div>
+    </div>
+
+    <p><strong>Why two "after" numbers?</strong> When the app can't be sure of a genuine fix
+    (for example, it couldn't confidently describe an image), it inserts a <em>placeholder</em>
+    so the file still passes the automated checker — and flags it for you. The
+    <strong>gap between "After (checker)" and "Truly remediated" is exactly the work that
+    still needs a human</strong>. The report lists those items so you know what to review.</p>
+
+    <table>
+      <tr><td>Genuinely fixed</td><td>Real fixes the app made on its own (titles, table headers, language, AI alt text, …).</td></tr>
+      <tr><td>Placeholders</td><td>Passed the checker with a stand-in value — needs your review. You can acknowledge each in the report.</td></tr>
+      <tr><td>Needs manual fix</td><td>Issues the app detected but can't safely change automatically (e.g. color contrast).</td></tr>
+    </table>
+
+    <div class="tip">
+      <strong>The real confirmation is Canvas.</strong> The app's score is a close
+      approximation; the official score appears when you re-upload the
+      <code>_a11y</code> file to Canvas. "Passes the checker" is not the same as
+      "perfectly accessible" — that's why the honest second number exists.
+    </div>
+  </section>
+
+  <!-- SECTION 5 -->
+  <section>
+    <div class="section-tag">Section 05</div>
+    <h2>Getting real <span>AI alt text</span> (optional)</h2>
+    <p>Out of the box, the app still runs without any AI configured — it writes
+    <em>placeholder</em> alt text and slide titles so files pass the checker, and flags them
+    for review. To get genuine, AI-generated descriptions, set three values before you start
+    the CLI or the backend:</p>
+
+    <div class="code">export LLM_API_KEY=sk-your-key-here
+export LLM_BASE_URL=https://api.openai.com/v1   <span class="cmt"># or any OpenAI-compatible endpoint</span>
+export LLM_MODEL=gpt-4o-mini                    <span class="cmt"># a vision-capable model</span></div>
+
+    <p>With these set, images get real descriptions and untitled slides get real titles —
+    which raises the "Truly remediated" score, not just the checker score.</p>
+
+    <div class="tip gold">
+      <strong>Privacy:</strong> only the image and a little surrounding slide text are sent to
+      the model, and only ever from the server. No student data is involved — the app handles
+      faculty course materials only.
+    </div>
+  </section>
+
+  <!-- SECTION 6 -->
+  <section>
+    <div class="section-tag">Section 06</div>
+    <h2>Quick <span>troubleshooting</span></h2>
+    <table>
+      <tr><td>Unsupported file</td><td>Phase 1 accepts <strong>.pptx</strong> and <strong>.pdf</strong> only. Other types are rejected with a message.</td></tr>
+      <tr><td>PDF score stays low</td><td>Expected for untagged/scanned PDFs — the app fixes the title and language but flags the deeper structural work (and OCR) for follow-up. PowerPoint files reach a much higher score.</td></tr>
+      <tr><td>Frontend can't reach API</td><td>Make sure the backend is running on <code>http://localhost:8000</code> and that <code>frontend/.env</code> points to it.</td></tr>
+      <tr><td>Alt text looks generic</td><td>That's a placeholder — set the <code>LLM_*</code> values (Section 05) for real descriptions.</td></tr>
+    </table>
+  </section>
+
+</div>
+
+<footer>
+  <span>🦉 OpenOwls</span> · Accessibility Automator · Temple University<br />
+  <a href="getting-started.html">OpenOwls SDD Guide</a> ·
+  <a href="https://github.com/OpenOwls-at-Temple/accessibility-automator">GitHub</a><br /><br />
+  © 2026 OpenOwls at Temple University
+</footer>
+
+</body>
+</html>
