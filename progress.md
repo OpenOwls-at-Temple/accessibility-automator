@@ -15,6 +15,27 @@ Full stack now exists. The `remediator/` engine audits/fixes/re-scores/reports *
 
 ---
 
+## Integration / Branch State
+<!-- Where the code actually lives across branches and PRs. -->
+
+⚠️ **`main` currently has the PPTX path only.** The four PRs were built as a stack
+(each branch off the previous), but #2/#3 were merged into their *intermediate base
+branches* instead of being retargeted to `main` after #1 merged — so PDF, backend,
+and frontend have **not reached `main`** yet.
+
+| PR | Branch | State | Landed where |
+|----|--------|-------|--------------|
+| #1 | `feature/pptx-remediation-path` | merged | **`main`** ✓ |
+| #2 | `feature/pdf-remediation-path` | merged | into the pptx branch (not `main`) |
+| #3 | `feature/fastapi-backend` | merged | into the pdf branch (not `main`) |
+| #4 | `feature/react-frontend` | **open** | targets the backend branch |
+
+**Fix:** PR #4 (`feature/react-frontend`) already contains the full remaining chain
+(PDF → backend → frontend, 3 commits) cleanly on top of `main`. Retarget #4 to `main`
+(`gh pr edit 4 --base main`) and merge it — that single merge lands everything on `main`.
+
+---
+
 ## Completed
 <!-- List tasks or features that are fully done. Add the date when completed. -->
 
@@ -49,6 +70,7 @@ Full stack now exists. The `remediator/` engine audits/fixes/re-scores/reports *
 ## Up Next
 <!-- The next 2-3 tasks to tackle in the current phase -->
 
+- [ ] **Land the stack on `main`:** retarget PR #4 to `main` and merge it (brings PDF + backend + frontend up in one merge). See Integration / Branch State above.
 - [ ] Full-stack browser E2E: run backend + frontend together and click through sign-in → upload → Fix → report (headless browser); add a couple of frontend integration tests for FileExplorer/ReportViewer against a mocked API.
 - [ ] PDF OCR (D8): add a text layer to scanned PDFs (Tesseract via pytesseract/pdf2image or ocrmypdf as a subprocess); guard on binary availability and degrade to report-only otherwise.
 - [ ] PDF structure (D1/D3/D4/D5/D7): synthesize a logical structure tree and write `/Alt` on figures (evaluate Adobe Auto-Tag API; likely partly Phase 2 per the risk note).
@@ -71,6 +93,7 @@ Full stack now exists. The `remediator/` engine audits/fixes/re-scores/reports *
 ## Session Log
 <!-- Brief note after each work session. Most recent at the top. -->
 
+- **2026-06-14 (status review)** — Reviewed where everything stands. All Phase 1 code is written/tested (41 Python + 4 frontend tests passing, linters clean). Discovered the stacked PRs #1–#3 were merged into their intermediate base branches rather than up to `main`, so `main` has the PPTX path only; PDF/backend/frontend live in PR #4's chain. Recommended retargeting #4 to `main` to land the rest in one merge (see Integration / Branch State). No code changes this session.
 - **2026-06-14** — Built the React (Vite) frontend on a branch stacked on the backend branch. `services/api.js` talks to the API with `credentials: "include"` (cookie auth); `useAuth` context checks the session on mount; `useJobStatus` polls jobs ~2s. UI: SignInForm (mock login), HomePage with TopPanel (name/email) + FileExplorer (groups/files, before→after→truly-fixed scores, **Fix** button with live progress, download original/remediated, report link), UploadModal (group + PPTX/PDF), and ReportPage/ReportViewer (three scores + genuine/placeholder/manual sections with placeholder Acknowledge → POST signoff). OpenOwls-themed CSS. ESLint/Prettier/Vitest configured; 4 tests pass; `vite build` and `eslint` clean; dev server serves the app and the entry module compiles. Did **not** yet do a headless-browser click-through (added to Up Next).
 - **2026-06-13 (impl 3)** — Built the FastAPI backend (branch stacked on the PDF branch). `backend/app/`: env-driven settings; swappable auth (`MockAuthProvider` active, `AzureOIDCProvider` stub) behind HMAC signed-cookie sessions (stdlib, no extra dep); `StorageService` with strict name validation (no `..`/separators), per-user input/output dirs, `_a11y` outputs, and atomic `metadata.json` writes; `JobManager` running remediation on a thread pool with status polling; Pydantic schemas; routes for auth/groups/files(upload+download+signoff)/jobs/reports/config + `/health`; `create_app()` factory with CORS and state on `app.state` for testability. Added 16 API tests incl. auth-isolation (a user can't reach another's files or jobs); 41 total pass; black/ruff clean. Smoke-tested live via uvicorn (login→upload→list over real HTTP). No LLM in tests → deterministic placeholder behavior.
 - **2026-06-13 (impl 2)** — Built the PDF path on a branch stacked on the PPTX branch. `pdf_handler.py` (pikepdf) opens files, handles encrypted/corrupted gracefully (copies original through on save), and exposes helpers for title/language/tagging/images/scanned-page/link detection (scanned detection parses the content stream for text operators, since reportlab adds fonts to image-only pages). `pdf_rules.py` audits D1/D2/D3/D8/D9–D11/D12/D16; `pdf_fixer.py` auto-fixes D2+D12 and honestly reports the rest as needs-manual. Registered `.pdf` in the pipeline. Added 9 PDF tests (reportlab/pikepdf fixtures); 25 total pass; black/ruff clean. Also corrected the CLI summary (was counting `not_fixed` as genuine fixes). Verified CLI on a demo PDF: 55 → 82, title+lang written. **Scoped out for now (flagged to sponsor):** real OCR and structure-tree synthesis — they need Tesseract and more than pikepdf provides.
