@@ -131,12 +131,22 @@ def fix_slide_title(
 
 
 def _ensure_title_placeholder(slide):
-    """Return the slide's title placeholder, cloning the layout's if missing."""
+    """Return the slide's title placeholder, cloning the layout's if missing.
+
+    ``SlideLayout.shapes``/``.placeholders`` have no ``.title`` shortcut (that
+    convenience property only exists on ``SlideShapes``) - the title
+    placeholder must be found by its idx, which is always 0 for both TITLE
+    and CENTER_TITLE layouts.
+    """
     if slide.shapes.title is not None:
         return slide.shapes.title
     import copy
 
-    layout_title = slide.slide_layout.shapes.title
+    layout_title = None
+    for ph in slide.slide_layout.placeholders:
+        if ph.placeholder_format.idx == 0:
+            layout_title = ph
+            break
     if layout_title is None:
         return None
     try:
