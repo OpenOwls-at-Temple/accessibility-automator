@@ -32,5 +32,11 @@ def test_login_rejects_bad_email(client):
 
 def test_tampered_cookie_is_rejected(client):
     login(client)
+    # client.cookies.set() adds a *second* cookie under a different jar domain
+    # rather than overwriting the first, so both get sent and the server's
+    # cookie parser picks the still-valid one - silently passing this test
+    # without ever exercising the tamper path. Clear the jar first so only
+    # the tampered value is sent.
+    client.cookies.clear()
     client.cookies.set("a11y_session", "garbage.signature")
     assert client.get(f"{API}/auth/me").status_code == 401
