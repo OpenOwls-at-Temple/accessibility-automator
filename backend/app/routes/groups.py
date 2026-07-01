@@ -75,4 +75,5 @@ def remediate_group(
         progress=job.progress,
         files_done=job.files_done,
         files_total=job.files_total,
+        current_file=job.current_file,
     )

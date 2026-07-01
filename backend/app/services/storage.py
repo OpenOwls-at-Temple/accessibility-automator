@@ -23,7 +23,7 @@ from pathlib import Path
 
 from remediator.models import FileReport
 
-_SAFE_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
+_SAFE_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9 ._-]*$")
 ALLOWED_EXTENSIONS = {".pptx", ".pdf"}
 
 
