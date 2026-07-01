@@ -69,11 +69,14 @@ def fix_pptx(
     audit_results: list[AuditResult],
     cfg: Config,
     provider=None,
+    overrides: dict[str, str] | None = None,
 ) -> list[FixResult]:
+    """``overrides`` maps element_ref -> approved text from human review."""
     prs = handler.presentation
     fixes: list[FixResult] = []
     fix_major = cfg.fixes.auto_fix_major
     fix_minor = cfg.fixes.auto_fix_minor
+    overrides = overrides or {}
 
     # P1 — document title (Major, deterministic)
     if fix_major and not (prs.core_properties.title or "").strip():
@@ -86,9 +89,11 @@ def fix_pptx(
         title_shape = slide.shapes.title
         if title_shape is not None and (title_shape.text or "").strip():
             continue
+        element_ref = rules._slide_label(s_idx)
         fixes.append(
             ai_fixer.fix_slide_title(
-                slide, s_idx, rules._slide_label(s_idx), _slide_text(slide), cfg, provider
+                slide, s_idx, element_ref, _slide_text(slide), cfg, provider,
+                override=overrides.get(element_ref),
             )
         )
 
@@ -99,8 +104,12 @@ def fix_pptx(
         slide = prs.slides[s_idx - 1]
         title = slide.shapes.title
         context = (title.text or "").strip() if title is not None else ""
+        element_ref = rules._ref(s_idx, shape)
         fixes.append(
-            ai_fixer.fix_image_alt_text(shape, rules._ref(s_idx, shape), context, cfg, provider)
+            ai_fixer.fix_image_alt_text(
+                shape, element_ref, context, cfg, provider,
+                override=overrides.get(element_ref),
+            )
         )
 
     # P5 — table headers (Major, deterministic)

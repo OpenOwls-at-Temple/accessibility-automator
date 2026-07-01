@@ -35,11 +35,15 @@ def _placeholder_or_unfixed(
     return FixResult(check_id, ACTION_NOT_FIXED, element_ref, detail_unfixed, success=False)
 
 
-def fix_image_alt_text(shape, element_ref: str, context: str, cfg: Config, provider) -> FixResult:
+def fix_image_alt_text(shape, element_ref: str, context: str, cfg: Config, provider, override: str | None = None) -> FixResult:
     """Caption an image with the LLM, falling back to a placeholder."""
 
     def placeholder():
         set_alt_text(shape, cfg.signoff.placeholder_alt_text)
+
+    if override is not None:
+        set_alt_text(shape, override)
+        return FixResult("P3", ACTION_AI_FIXED, element_ref, f"Human-approved alt text: {override}", success=True)
 
     if provider is None or not cfg.llm.generate_alt_text:
         return _placeholder_or_unfixed(
@@ -81,7 +85,8 @@ def fix_image_alt_text(shape, element_ref: str, context: str, cfg: Config, provi
 
 
 def fix_slide_title(
-    slide, slide_idx: int, element_ref: str, slide_text: str, cfg: Config, provider
+    slide, slide_idx: int, element_ref: str, slide_text: str, cfg: Config, provider,
+    override: str | None = None,
 ) -> FixResult:
     """Suggest a slide title with the LLM, falling back to a placeholder.
 
@@ -98,6 +103,10 @@ def fix_slide_title(
 
     def write_placeholder():
         title_shape.text = placeholder_title
+
+    if override is not None:
+        title_shape.text = override
+        return FixResult("P2", ACTION_AI_FIXED, element_ref, f"Human-approved title: {override}", success=True)
 
     if provider is None or not cfg.llm.suggest_titles or not slide_text.strip():
         return _placeholder_or_unfixed(

@@ -33,7 +33,9 @@ class Job:
     files: list[str]
     status: str = STATUS_QUEUED
     files_done: int = 0
+    current_file: str | None = None
     error: str | None = None
+    overrides: dict[str, str] | None = None
 
     @property
     def files_total(self) -> int:
@@ -52,8 +54,8 @@ class JobManager:
         self._jobs: dict[str, Job] = {}
         self._lock = threading.Lock()
 
-    def start(self, username: str, group: str, files: list[str]) -> Job:
-        job = Job(id=uuid.uuid4().hex, username=username, group=group, files=files)
+    def start(self, username: str, group: str, files: list[str], overrides: dict[str, str] | None = None) -> Job:
+        job = Job(id=uuid.uuid4().hex, username=username, group=group, files=files, overrides=overrides)
         with self._lock:
             self._jobs[job.id] = job
         self._executor.submit(self._run, job)
@@ -69,8 +71,10 @@ class JobManager:
         provider = build_provider(self.config.llm)
         try:
             for filename in job.files:
+                job.current_file = filename
                 self._remediate_one(job, filename, provider)
                 job.files_done += 1
+                job.current_file = None
             job.status = STATUS_DONE
         except Exception as exc:  # noqa: BLE001 — record, never crash the worker
             job.status = STATUS_ERROR
@@ -80,7 +84,7 @@ class JobManager:
         input_path = self.storage.input_path(job.username, job.group, filename)
         output_path = self.storage.output_path(job.username, job.group, filename)
         try:
-            report = remediate_file(input_path, output_path, cfg=self.config, provider=provider)
+            report = remediate_file(input_path, output_path, cfg=self.config, provider=provider, overrides=job.overrides)
             write_json_report(report, self.storage.report_path(job.username, job.group, filename))
             write_html_report(
                 report, self.storage.report_path(job.username, job.group, filename, kind="html")

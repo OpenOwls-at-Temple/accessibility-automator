@@ -72,6 +72,15 @@ export const api = {
   getJob: (jobId) => request(`/jobs/${jobId}`),
   getReport: (group, name) =>
     request(`/groups/${encodeURIComponent(group)}/files/${encodeURIComponent(name)}/report`),
+  scanFile: (group, name) =>
+    request(`/groups/${encodeURIComponent(group)}/files/${encodeURIComponent(name)}/scan`, {
+      method: "POST",
+    }),
+  applyReview: (group, name, suggestions) =>
+    request(`/groups/${encodeURIComponent(group)}/files/${encodeURIComponent(name)}/apply-review`, {
+      method: "POST",
+      body: JSON.stringify({ suggestions }),
+    }),
   signoff: (group, name, checkId, note = null) =>
     request(`/groups/${encodeURIComponent(group)}/files/${encodeURIComponent(name)}/signoff`, {
       method: "POST",
