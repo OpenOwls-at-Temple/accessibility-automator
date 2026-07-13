@@ -44,8 +44,8 @@ Accessibility Automator removes the manual loop: a faculty member uploads a file
 - No Word or video support in Phase 1 — that is planned for Phase 2 (the architecture must make adding formats easy).
 - Not a legal guarantee of full accessibility or WCAG conformance. "Checker-passing" is not the same as "perfectly accessible," and the app must be honest about that distinction.
 - Does not remediate the Canvas course shell itself — only the uploaded documents.
-- Production Microsoft Azure SSO is **not a hard blocker for Phase 1**. Authentication sits behind a swappable interface with a dev/mock login for local development; real Azure AD / Temple SSO is wired in as an early Phase 1 task gated on Temple IT approval.
-- No role-based permissions, admin dashboards, or sharing between users in Phase 1.
+- Sign-in is **Google SSO + an admin-managed invite allowlist** (no self-service sign-up). Because a plain Temple email domain check cannot distinguish faculty from students, access is granted per-account by an admin; this bounds the user base and the attack surface. A local-only dev login supports development before Google credentials exist.
+- Beyond the single **admin** role (who can invite/deactivate users), there are no fine-grained role-based permissions, admin analytics dashboards, or sharing between users in Phase 1.
 
 ---
 
@@ -66,11 +66,11 @@ Accessibility Automator removes the manual loop: a faculty member uploads a file
 | Layer | Technology | Notes |
 |-------|------------|-------|
 | Frontend | React 18 (Vite) | Upload → view report → download flow; matches the team's other apps |
-| Backend | FastAPI (Python 3.11+) | Best ecosystem for document remediation; REST API consumed by the React frontend |
+| Backend | FastAPI (Python 3.11+), managed with **uv** | Best ecosystem for document remediation; REST API consumed by the React frontend |
 | Document Processing | python-pptx (PPTX), pikepdf / reportlab / OCR tooling (PDF) | Read, edit, and re-tag documents programmatically |
 | AI / LLM | Vision-capable model behind an **OpenAI-compatible interface** | Provider is swappable (e.g. OpenAI GPT-4o, Anthropic Claude via a compatible gateway, or a self-hosted model). Used for alt-text and title captioning. |
-| Auth | Pluggable auth interface: dev/mock login locally; **Microsoft Azure AD / Temple SSO (OAuth2 / OIDC)** in production | Access restricted to Temple University accounts |
-| Storage | Server filesystem, per-user folders keyed by email username | `input/<group>/...` and `output/<group>/...`; no relational database in Phase 1 |
+| Auth | **Google SSO (Google Identity Services)** + an **admin-managed invite allowlist**; JWT bearer sessions (authlib). A local-only dev login is available. | Sign-in restricted to a configured Temple email domain AND to accounts an admin has added — no self-service sign-up. |
+| Storage | Server filesystem for documents (per-user folders keyed by email username) **+ a small SQL database for the user allowlist only** | Files: `input/<group>/...`, `output/<group>/...`. DB: SQLite (local) / Supabase Postgres (prod), users table only — SQLAlchemy + Alembic. |
 | Hosting | Render (low-cost tier) — or the Temple data center if access and approval are obtained | Final choice depends on Temple IT approval timelines |
 
 ---

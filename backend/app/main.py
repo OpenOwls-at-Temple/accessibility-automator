@@ -2,8 +2,9 @@
 
     uvicorn backend.app.main:app --reload
 
-Shared state (settings, engine config, storage, job manager, auth provider)
-lives on ``app.state`` so it is easy to override in tests via ``create_app``.
+Shared state (settings, engine config, storage, job manager) lives on
+``app.state`` so it is easy to override in tests via ``create_app``. Auth is
+DB-backed (users allowlist); the schema is created by Alembic, not here.
 """
 
 from __future__ import annotations
@@ -11,10 +12,7 @@ from __future__ import annotations
 from fastapi import APIRouter, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from backend.app.auth.azure_oidc import AzureOIDCProvider
-from backend.app.auth.base import AuthProvider
-from backend.app.auth.mock import MockAuthProvider
-from backend.app.routes import auth, files, groups, jobs, reports
+from backend.app.routes import auth, files, groups, jobs, reports, users
 from backend.app.routes import config as config_route
 from backend.app.services.jobs import JobManager
 from backend.app.services.storage import StorageService
@@ -22,12 +20,6 @@ from backend.app.settings import Settings, load_settings
 from remediator.config import Config, load_config
 
 API_PREFIX = "/api/v1"
-
-
-def _make_auth_provider(settings: Settings) -> AuthProvider:
-    if settings.auth_provider == "azure":
-        return AzureOIDCProvider(settings)
-    return MockAuthProvider()
 
 
 def create_app(settings: Settings | None = None, config: Config | None = None) -> FastAPI:
@@ -39,7 +31,6 @@ def create_app(settings: Settings | None = None, config: Config | None = None) -
     app.state.config = config
     app.state.storage = StorageService(settings.storage_dir)
     app.state.jobs = JobManager(app.state.storage, config)
-    app.state.auth_provider = _make_auth_provider(settings)
 
     app.add_middleware(
         CORSMiddleware,
@@ -50,14 +41,14 @@ def create_app(settings: Settings | None = None, config: Config | None = None) -
     )
 
     api = APIRouter(prefix=API_PREFIX)
-    for module in (auth, groups, files, reports, jobs, config_route):
+    for module in (auth, users, groups, files, reports, jobs, config_route):
         api.include_router(module.router)
-    app.include_router(api)
 
-    @app.get("/health")
+    @api.get("/health")
     def health() -> dict:
         return {"status": "ok", "environment": settings.environment}
 
+    app.include_router(api)
     return app
 
 

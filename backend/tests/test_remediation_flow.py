@@ -1,8 +1,8 @@
 from backend.tests.conftest import API, login, upload, wait_for_job
 
 
-def test_full_remediation_flow(client, pptx_bytes):
-    login(client)
+def test_full_remediation_flow(client, db_session, pptx_bytes):
+    login(client, db_session)
     upload(client, "CIS4526", "lecture1.pptx", pptx_bytes)
 
     # Kick off remediation -> background job.
@@ -32,8 +32,8 @@ def test_full_remediation_flow(client, pptx_bytes):
     assert report["scores"]["post_fix_checker_passing"]["score"] >= 0
 
 
-def test_signoff_acknowledges_a_placeholder(client, pptx_bytes):
-    login(client)
+def test_signoff_acknowledges_a_placeholder(client, db_session, pptx_bytes):
+    login(client, db_session)
     upload(client, "CIS4526", "lecture1.pptx", pptx_bytes)
     job_id = client.post(f"{API}/groups/CIS4526/remediate", json={}).json()["job_id"]
     wait_for_job(client, job_id)
@@ -52,18 +52,18 @@ def test_signoff_acknowledges_a_placeholder(client, pptx_bytes):
     assert ok.status_code == 200
 
 
-def test_remediate_unknown_group_is_404(client):
-    login(client)
+def test_remediate_unknown_group_is_404(client, db_session):
+    login(client, db_session)
     assert client.post(f"{API}/groups/NOPE/remediate", json={}).status_code == 404
 
 
-def test_job_belongs_to_its_owner(app, pptx_bytes):
+def test_job_belongs_to_its_owner(app, db_session, pptx_bytes):
     from fastapi.testclient import TestClient
 
     alice = TestClient(app)
     bob = TestClient(app)
-    login(alice, "alice@temple.edu")
-    login(bob, "bob@temple.edu")
+    login(alice, db_session, "alice@temple.edu")
+    login(bob, db_session, "bob@temple.edu")
 
     upload(alice, "CIS4526", "lecture1.pptx", pptx_bytes)
     job_id = alice.post(f"{API}/groups/CIS4526/remediate", json={}).json()["job_id"]

@@ -1,0 +1,80 @@
+# Render Blueprint for Accessibility Automator
+# Docs: https://render.com/docs/blueprint-spec
+#
+# Deploy: in the Render dashboard choose "New +" -> "Blueprint", connect this
+# repo, and Render reads this file to create both services. It prompts for every
+# var marked `sync: false` (the secrets) at deploy time.
+#
+# The user allowlist DB is NOT defined here — production uses Supabase (see
+# ai_specs/deployment.md), not Render Postgres. Paste the Supabase pooler
+# connection string into DATABASE_URL when prompted. (Alternative: since the
+# backend already mounts a persistent disk, you may instead point DATABASE_URL
+# at a SQLite file on that disk, e.g. sqlite:////data/a11y.db, and skip Supabase.)
+#
+# Alembic runs on each deploy: the startCommand runs `alembic upgrade head`
+# before uvicorn, so the schema is ready before the new code serves traffic
+# (idempotent — a no-op when already at head).
+
+services:
+  # ---- Backend: FastAPI web service (engine + API) -----------------------
+  - type: web
+    name: accessibility-automator-backend
+    runtime: python
+    plan: free
+    region: oregon
+    # rootDir is the repo root: the API imports the root `remediator/` engine,
+    # and alembic/ lives at the root next to alembic.ini.
+    buildCommand: pip install uv && uv sync --no-dev
+    startCommand: uv run alembic upgrade head && uv run uvicorn backend.app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/v1/health
+    # Per-user workspaces (originals + remediated _a11y outputs) live here and
+    # MUST be on a persistent disk, or files are lost on redeploy.
+    disk:
+      name: a11y-storage
+      mountPath: /data
+      sizeGB: 1
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12"
+      - key: ENVIRONMENT
+        value: production          # disables the /auth/dev-login endpoint
+      - key: STORAGE_DIR
+        value: /data               # the mounted persistent disk
+      - key: JWT_SECRET
+        generateValue: true        # Render generates + persists a strong secret
+      - key: DATABASE_URL
+        sync: false                # Supabase pooler URL (or sqlite:////data/a11y.db)
+      - key: GOOGLE_CLIENT_ID
+        sync: false                # Google OAuth web client ID (same as frontend)
+      - key: ALLOWED_EMAIL_DOMAIN
+        value: temple.edu          # sign-in restricted to this email domain
+      - key: FRONTEND_URL
+        sync: false                # https URL of the static site below (CORS + links)
+      - key: CORS_ORIGINS
+        sync: false                # usually the same as FRONTEND_URL
+      - key: LLM_API_KEY
+        sync: false                # OpenAI-compatible endpoint (AI alt text/titles)
+      - key: LLM_BASE_URL
+        sync: false
+      - key: LLM_MODEL
+        sync: false
+    # NOTE: OCR of scanned PDFs (D8) needs Tesseract on the OS, which the native
+    # python runtime can't install — switch this service to a Docker runtime when
+    # that feature lands. Metadata PDF fixes work without it.
+
+  # ---- Frontend: React/Vite static site ----------------------------------
+  - type: web
+    name: accessibility-automator-frontend
+    runtime: static
+    rootDir: frontend
+    buildCommand: npm ci && npm run build
+    staticPublishPath: dist
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html   # SPA fallback so client-side routes resolve
+    envVars:
+      - key: VITE_API_BASE_URL
+        sync: false                # https URL of the backend service (with scheme)
+      - key: VITE_GOOGLE_CLIENT_ID
+        sync: false                # Google OAuth web client ID (same as backend)

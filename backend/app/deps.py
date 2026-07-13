@@ -1,17 +1,17 @@
 """FastAPI dependencies — pull shared state off ``app.state`` and resolve the
-current user from the signed session cookie.
+current user from the JWT bearer token.
 
-Resolving the user from the cookie (never from a client-supplied path) is what
-guarantees a user can only ever touch their own workspace.
+Resolving the user from the token (then keying storage by the *authenticated*
+email, never a client-supplied path) is what guarantees a user can only ever
+touch their own workspace. ``get_current_user`` / ``get_current_admin`` live in
+``core.security`` and are re-exported here for convenience.
 """
 
 from __future__ import annotations
 
-from fastapi import Depends, HTTPException, Request, status
+from fastapi import Request
 
-from backend.app.auth import session
-from backend.app.auth.base import AuthProvider
-from backend.app.auth.models import User
+from backend.app.core.security import get_current_admin, get_current_user  # noqa: F401
 from backend.app.services.jobs import JobManager
 from backend.app.services.storage import StorageService
 from backend.app.settings import Settings
@@ -32,15 +32,3 @@ def get_storage(request: Request) -> StorageService:
 
 def get_jobs(request: Request) -> JobManager:
     return request.app.state.jobs
-
-
-def get_auth_provider(request: Request) -> AuthProvider:
-    return request.app.state.auth_provider
-
-
-def get_current_user(request: Request, settings: Settings = Depends(get_settings)) -> User:
-    token = request.cookies.get(session.COOKIE_NAME)
-    payload = session.verify(token, settings.session_secret) if token else None
-    if not payload:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
-    return User(username=payload["username"], email=payload["email"], name=payload["name"])

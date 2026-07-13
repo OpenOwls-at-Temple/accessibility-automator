@@ -1,8 +1,8 @@
-// Auth context: tracks the signed-in user and exposes login/logout.
-// On mount it checks for an existing session via GET /auth/me.
+// Auth context: tracks the signed-in user and exposes sign-in/out.
+// On mount, if a JWT is stored it validates it via GET /auth/me.
 
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
-import { api } from "../services/api.js";
+import { api, getToken } from "../services/api.js";
 
 const AuthContext = createContext(null);
 
@@ -11,9 +11,15 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   const refresh = useCallback(async () => {
+    if (!getToken()) {
+      setUser(null);
+      setLoading(false);
+      return;
+    }
     try {
       setUser(await api.me());
     } catch {
+      api.logout();
       setUser(null);
     } finally {
       setLoading(false);
@@ -24,19 +30,23 @@ export function AuthProvider({ children }) {
     refresh();
   }, [refresh]);
 
-  const login = async (email) => {
-    const u = await api.login(email);
-    setUser(u);
-    return u;
+  const ssoLogin = async (credential) => {
+    await api.ssoLogin(credential);
+    setUser(await api.me());
   };
 
-  const logout = async () => {
-    await api.logout();
+  const devLogin = async (email) => {
+    await api.devLogin(email);
+    setUser(await api.me());
+  };
+
+  const logout = () => {
+    api.logout();
     setUser(null);
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout, refresh }}>
+    <AuthContext.Provider value={{ user, loading, ssoLogin, devLogin, logout, refresh }}>
       {children}
     </AuthContext.Provider>
   );

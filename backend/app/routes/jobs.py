@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from backend.app.auth.models import User
 from backend.app.deps import get_current_user, get_jobs
+from backend.app.models.user import User
 from backend.app.schemas.models import JobOut
 from backend.app.services.jobs import JobManager
 

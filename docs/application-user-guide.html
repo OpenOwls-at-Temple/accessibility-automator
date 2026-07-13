@@ -232,7 +232,7 @@
     <p>From the project root, run the <code>fix</code> command on your PowerPoint:</p>
 
     <div class="code"><span class="cmt"># from the project root folder</span>
-.venv/bin/python -m backend.cli fix /path/to/your_deck.pptx</div>
+uv run python -m backend.cli fix /path/to/your_deck.pptx</div>
 
     <p>You'll see output like this:</p>
 
@@ -267,8 +267,10 @@
 
     <h3>Terminal 1 — start the backend</h3>
     <div class="code"><span class="cmt"># from the project root</span>
-cp .env.example .env          <span class="cmt"># first time only (AUTH_PROVIDER=mock)</span>
-.venv/bin/python -m uvicorn backend.app.main:app --reload
+cp .env.example .env                                <span class="cmt"># first time only</span>
+uv run alembic upgrade head                         <span class="cmt"># first time only — create the users table</span>
+uv run python -m backend.app.seed --admin you@temple.edu   <span class="cmt"># first time only — make yourself admin</span>
+uv run uvicorn backend.app.main:app --reload
 <span class="out"># now serving the API at http://localhost:8000</span></div>
 
     <h3>Terminal 2 — start the frontend</h3>
@@ -280,7 +282,7 @@ npm run dev
 
     <h3>Then, in your browser at <code>http://localhost:5173</code></h3>
     <ol class="steps">
-      <li><div class="step-body"><strong>Sign in</strong> with any email — e.g. <code>you@temple.edu</code> (development mode accepts any address and gives you a private workspace).</div></li>
+      <li><div class="step-body"><strong>Sign in</strong> using the <strong>Local dev login</strong> box with your registered email — e.g. the <code>you@temple.edu</code> you seeded as admin above. (In production you'd click <strong>Sign in with Google</strong>; access is invite-only, so an admin adds each Temple account first.)</div></li>
       <li><div class="step-body">Click <strong>Upload</strong>, type a <strong>group name</strong> (usually your course code, e.g. <code>CIS4526</code>), and choose your <code>.pptx</code> file.</div></li>
       <li><div class="step-body">Click the <strong>Fix</strong> button on the group. The button shows live progress while it works.</div></li>
       <li><div class="step-body">When it finishes, the file row shows three scores: <strong>Before → After → Truly fixed</strong>.</div></li>

@@ -6,8 +6,8 @@ from dataclasses import asdict
 
 from fastapi import APIRouter, Depends
 
-from backend.app.auth.models import User
 from backend.app.deps import get_config, get_current_user
+from backend.app.models.user import User
 from remediator.config import Config
 
 router = APIRouter(prefix="/config", tags=["config"])

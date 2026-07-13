@@ -5,8 +5,8 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from fastapi.responses import FileResponse
 
-from backend.app.auth.models import User
 from backend.app.deps import get_current_user, get_storage
+from backend.app.models.user import User
 from backend.app.schemas.models import SignoffRequest, UploadResult
 from backend.app.services.storage import StorageError, StorageService
 

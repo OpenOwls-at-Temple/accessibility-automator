@@ -72,9 +72,7 @@ export default function FileExplorer() {
             <div className="group-header">
               <h3>{group.name}</h3>
               <button onClick={() => onFix(group.name)} disabled={!!activeJob}>
-                {busy
-                  ? `Fixing… ${jobStatus ? Math.round(jobStatus.progress * 100) : 0}%`
-                  : "Fix"}
+                {busy ? `Fixing… ${jobStatus ? Math.round(jobStatus.progress * 100) : 0}%` : "Fix"}
               </button>
             </div>
             <table className="files">
@@ -105,12 +103,28 @@ export default function FileExplorer() {
                       <Score value={file.truly_remediated_score} />
                     </td>
                     <td className="row" style={{ gap: 10 }}>
-                      <a href={api.downloadUrl(group.name, file.name, "input")}>original</a>
+                      <button
+                        className="btn-link"
+                        onClick={() =>
+                          api
+                            .download(group.name, file.name, "input")
+                            .catch((err) => setError(err.message))
+                        }
+                      >
+                        original
+                      </button>
                       {file.has_output && (
                         <>
-                          <a href={api.downloadUrl(group.name, file.name, "output")}>
+                          <button
+                            className="btn-link"
+                            onClick={() =>
+                              api
+                                .download(group.name, file.name, "output")
+                                .catch((err) => setError(err.message))
+                            }
+                          >
                             remediated
-                          </a>
+                          </button>
                           <Link
                             to={`/groups/${encodeURIComponent(group.name)}/files/${encodeURIComponent(
                               file.name
