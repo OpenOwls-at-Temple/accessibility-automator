@@ -24,3 +24,4 @@ pytest-asyncio>=0.23
 black>=24
 ruff>=0.5
 reportlab>=4                  # builds PDF test fixtures in remediator/tests/conftest.py
+python-dotenv>=1.0

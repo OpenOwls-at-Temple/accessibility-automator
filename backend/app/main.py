@@ -8,6 +8,10 @@ lives on ``app.state`` so it is easy to override in tests via ``create_app``.
 
 from __future__ import annotations
 
+from pathlib import Path
+from dotenv import load_dotenv
+load_dotenv(Path(__file__).resolve().parents[3] / ".env")  # always finds .env at repo root
+
 from fastapi import APIRouter, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
