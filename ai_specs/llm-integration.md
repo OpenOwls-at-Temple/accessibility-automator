@@ -26,13 +26,27 @@ The LLM does **not** decide scores, does not fix contrast/fonts, and is never th
 
 | Setting | Value |
 |---------|-------|
-| Provider | **Any OpenAI-compatible endpoint** — not hard-coded to one vendor |
-| Model | A **vision-capable** chat model (e.g. GPT-4o-class, or Claude via an OpenAI-compatible gateway). Set via `LLM_MODEL`. |
-| Why this design | Alt text requires true image captioning, so the model must accept image input. The OpenAI-compatible interface lets us swap provider/model by changing config — no code change. |
+| Provider | **Two providers supported** — auto-selected from `LLM_BASE_URL` (see below) |
+| Model | A **vision-capable** chat model. Set via `LLM_MODEL`. |
+| Why this design | Alt text requires true image captioning. The provider interface lets us swap model/vendor by changing `.env` only — no code change. |
 | Called from | Server-side only — `remediator/fixers/ai_fixer.py`. The frontend never calls the LLM directly. |
 | API key / endpoint | Server-side env vars: `LLM_API_KEY`, `LLM_BASE_URL`, `LLM_MODEL`. |
 
-The client lives in `remediator/llm/provider.py` and exposes a small `LLMProvider` interface (e.g. `caption_image(image_bytes, context) -> CaptionResult`, `suggest_title(text) -> TitleResult`). Swapping providers means pointing `LLM_BASE_URL`/`LLM_MODEL` at a different endpoint.
+### Supported Providers (auto-detected from `LLM_BASE_URL`)
+
+| Provider | `LLM_BASE_URL` | `LLM_MODEL` example | Auth header |
+|----------|---------------|---------------------|-------------|
+| **Anthropic** (Claude / Fable 5) ← recommended | `https://api.anthropic.com` | `claude-fable-5` | `x-api-key` |
+| **OpenAI-compatible** (OpenAI, Groq, Ollama…) | `https://api.openai.com/v1` | `gpt-4o-mini` | `Bearer` |
+
+`build_provider()` in `remediator/llm/provider.py` checks if `"anthropic.com"` is in `LLM_BASE_URL` and returns the matching class. No other changes needed.
+
+### To use Fable 5 — set these 3 lines in `.env`
+```
+LLM_API_KEY=sk-ant-...
+LLM_BASE_URL=https://api.anthropic.com
+LLM_MODEL=claude-fable-5
+```
 
 ---
 

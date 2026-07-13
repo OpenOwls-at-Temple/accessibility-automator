@@ -68,7 +68,7 @@ Accessibility Automator removes the manual loop: a faculty member uploads a file
 | Frontend | React 18 (Vite) | Upload → view report → download flow; matches the team's other apps |
 | Backend | FastAPI (Python 3.11+) | Best ecosystem for document remediation; REST API consumed by the React frontend |
 | Document Processing | python-pptx (PPTX), pikepdf / reportlab / OCR tooling (PDF) | Read, edit, and re-tag documents programmatically |
-| AI / LLM | Vision-capable model behind an **OpenAI-compatible interface** | Provider is swappable (e.g. OpenAI GPT-4o, Anthropic Claude via a compatible gateway, or a self-hosted model). Used for alt-text and title captioning. |
+| AI / LLM | Vision-capable model — **Anthropic (Fable 5) or any OpenAI-compatible endpoint** | Provider auto-detected from `LLM_BASE_URL`. `AnthropicProvider` (native API) and `OpenAICompatibleProvider` both implemented. Swap by changing `.env` only. |
 | Auth | Pluggable auth interface: dev/mock login locally; **Microsoft Azure AD / Temple SSO (OAuth2 / OIDC)** in production | Access restricted to Temple University accounts |
 | Storage | Server filesystem, per-user folders keyed by email username | `input/<group>/...` and `output/<group>/...`; no relational database in Phase 1 |
 | Hosting | Render (low-cost tier) — or the Temple data center if access and approval are obtained | Final choice depends on Temple IT approval timelines |
