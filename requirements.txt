@@ -7,6 +7,7 @@ pikepdf>=8                   # PDF structure (Phase 1 PDF path)
 pdf2image>=1.17              # rasterize PDF pages for OCR
 pytesseract>=0.3.10          # OCR scanned PDFs (requires Tesseract on the OS)
 Pillow>=10                   # image resize before sending to the LLM
+reportlab>=4                 # build PDF fixtures for the test suite
 
 # Config + HTTP
 PyYAML>=6                    # config.yaml loading

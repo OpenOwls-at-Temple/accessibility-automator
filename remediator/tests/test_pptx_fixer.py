@@ -1,6 +1,9 @@
+from pptx import Presentation
+from pptx.util import Inches
+
 from remediator.config import load_config
 from remediator.handlers.pptx_handler import PptxHandler, get_alt_text
-from remediator.models import ACTION_AI_FIXED
+from remediator.models import ACTION_AI_FIXED, ACTION_NOT_FIXED
 from remediator.pipeline import remediate_file
 from remediator.rules.pptx_rules import audit_pptx
 
@@ -58,6 +61,30 @@ def test_ai_alt_text_is_written(bad_pptx, tmp_path, fake_provider):
 
     pics = list(iter_pictures(PptxHandler(out).presentation))
     assert get_alt_text(pics[0][1]) == "A blue square test image"
+
+
+def test_slide_without_title_placeholder_does_not_crash(tmp_path, fake_provider):
+    """A slide on the Blank layout has no title placeholder to clone from.
+
+    The title fixer must degrade gracefully (P2 left unfixed) rather than raise
+    — a remediation job must always finish and produce a valid output file.
+    """
+    prs = Presentation()
+    slide = prs.slides.add_slide(prs.slide_layouts[6])  # Blank: no title placeholder
+    tb = slide.shapes.add_textbox(Inches(1), Inches(1), Inches(8), Inches(1))
+    tb.text_frame.text = "Content with no title placeholder anywhere"
+    src = tmp_path / "notitle.pptx"
+    prs.save(str(src))
+
+    out = tmp_path / "notitle_a11y.pptx"
+    report = remediate_file(src, out, cfg=load_config(), provider=fake_provider)
+
+    # The job completed and wrote a valid, reopenable deck.
+    assert out.exists()
+    assert len(Presentation(str(out)).slides._sldIdLst) == 1
+    # P2 could not be placed (no placeholder to hold a title) → honestly unfixed.
+    p2 = [f for f in report.fixes if f.check_id == "P2"]
+    assert p2 and p2[0].action == ACTION_NOT_FIXED and not p2[0].success
 
 
 def test_decorative_image_is_marked(bad_pptx, tmp_path, decorative_provider):

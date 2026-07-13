@@ -23,7 +23,10 @@ from pathlib import Path
 
 from remediator.models import FileReport
 
-_SAFE_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
+# Names must start with an alphanumeric, then allow spaces and ``._-``. Spaces
+# are safe (not path separators); traversal chars (``..`` ``/`` ``\``) are still
+# rejected below. Leading/trailing spaces are stripped before matching.
+_SAFE_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9 ._-]*$")
 ALLOWED_EXTENSIONS = {".pptx", ".pdf"}
 
 

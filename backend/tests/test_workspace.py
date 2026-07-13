@@ -32,6 +32,23 @@ def test_upload_rejects_path_traversal_filename(client, pptx_bytes):
     assert resp.status_code == 400
 
 
+def test_upload_allows_filename_with_spaces(client, pptx_bytes):
+    login(client)
+    name = "lecture 1 intro.pptx"
+    resp = upload(client, "CIS4526", name, pptx_bytes)
+    assert resp.status_code == 200
+    assert resp.json()["saved"] == [name]
+
+    detail = client.get(f"{API}/groups/CIS4526").json()
+    assert detail["files"][0]["name"] == name
+
+    # The spaced name round-trips through a URL-encoded download path.
+    from urllib.parse import quote
+
+    dl = client.get(f"{API}/groups/CIS4526/files/{quote(name)}/download?kind=input")
+    assert dl.status_code == 200
+
+
 def test_missing_group_is_404(client):
     login(client)
     assert client.get(f"{API}/groups/NOPE").status_code == 404
