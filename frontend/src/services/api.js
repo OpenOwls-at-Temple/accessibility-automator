@@ -1,33 +1,67 @@
 // Thin client for the Accessibility Automator backend.
-// All requests send the auth cookie (credentials: "include"); the backend's
-// CORS config allows this origin with credentials.
+// Auth is a JWT bearer token kept in localStorage and sent as `Authorization`.
 
 const BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
 const API = `${BASE}/api/v1`;
+const TOKEN_KEY = "a11y_token";
+
+export function getToken() {
+  return localStorage.getItem(TOKEN_KEY);
+}
+export function setToken(token) {
+  localStorage.setItem(TOKEN_KEY, token);
+}
+export function clearToken() {
+  localStorage.removeItem(TOKEN_KEY);
+}
+
+function authHeaders(extra = {}) {
+  const headers = { ...extra };
+  const token = getToken();
+  if (token) headers.Authorization = `Bearer ${token}`;
+  return headers;
+}
+
+async function fail(res) {
+  const body = await res.json().catch(() => ({ detail: res.statusText }));
+  const error = new Error(body.detail || `HTTP ${res.status}`);
+  error.status = res.status;
+  return error;
+}
 
 async function request(path, options = {}) {
   const res = await fetch(`${API}${path}`, {
-    credentials: "include",
-    headers: { "Content-Type": "application/json", ...(options.headers || {}) },
     ...options,
+    headers: authHeaders({ "Content-Type": "application/json", ...(options.headers || {}) }),
   });
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({ detail: res.statusText }));
-    const error = new Error(body.detail || `HTTP ${res.status}`);
-    error.status = res.status;
-    throw error;
-  }
+  if (!res.ok) throw await fail(res);
   return res.status === 204 ? null : res.json();
 }
 
 export const api = {
   base: BASE,
 
-  login: (email) =>
-    request("/auth/login", { method: "POST", body: JSON.stringify({ email }) }),
+  // --- auth ---
+  ssoLogin: async (credential) => {
+    const { access_token } = await request("/auth/login", {
+      method: "POST",
+      body: JSON.stringify({ credential }),
+    });
+    setToken(access_token);
+    return access_token;
+  },
+  devLogin: async (email) => {
+    const { access_token } = await request("/auth/dev-login", {
+      method: "POST",
+      body: JSON.stringify({ email }),
+    });
+    setToken(access_token);
+    return access_token;
+  },
   me: () => request("/auth/me"),
-  logout: () => request("/auth/logout", { method: "POST" }),
+  logout: () => clearToken(),
 
+  // --- workspace ---
   listGroups: () => request("/groups"),
   getGroup: (group) => request(`/groups/${encodeURIComponent(group)}`),
   remediate: (group, files = null) =>
@@ -37,14 +71,12 @@ export const api = {
     }),
   getJob: (jobId) => request(`/jobs/${jobId}`),
   getReport: (group, name) =>
-    request(
-      `/groups/${encodeURIComponent(group)}/files/${encodeURIComponent(name)}/report`
-    ),
+    request(`/groups/${encodeURIComponent(group)}/files/${encodeURIComponent(name)}/report`),
   signoff: (group, name, checkId, note = null) =>
-    request(
-      `/groups/${encodeURIComponent(group)}/files/${encodeURIComponent(name)}/signoff`,
-      { method: "POST", body: JSON.stringify({ check_id: checkId, note }) }
-    ),
+    request(`/groups/${encodeURIComponent(group)}/files/${encodeURIComponent(name)}/signoff`, {
+      method: "POST",
+      body: JSON.stringify({ check_id: checkId, note }),
+    }),
 
   uploadFiles: async (group, fileList) => {
     const form = new FormData();
@@ -52,22 +84,42 @@ export const api = {
     // No Content-Type header — the browser sets the multipart boundary.
     const res = await fetch(`${API}/groups/${encodeURIComponent(group)}/files`, {
       method: "POST",
-      credentials: "include",
+      headers: authHeaders(),
       body: form,
     });
-    if (!res.ok) {
-      const body = await res.json().catch(() => ({ detail: res.statusText }));
-      throw new Error(body.detail || `HTTP ${res.status}`);
-    }
+    if (!res.ok) throw await fail(res);
     return res.json();
   },
 
-  downloadUrl: (group, name, kind) =>
-    `${API}/groups/${encodeURIComponent(group)}/files/${encodeURIComponent(
-      name
-    )}/download?kind=${kind}`,
-  reportHtmlUrl: (group, name) =>
-    `${API}/groups/${encodeURIComponent(group)}/files/${encodeURIComponent(
-      name
-    )}/report/html`,
+  // Authed file download: a plain <a href> can't send the bearer token, so we
+  // fetch with the header, then save the blob via a temporary object URL.
+  download: async (group, name, kind) => {
+    const res = await fetch(
+      `${API}/groups/${encodeURIComponent(group)}/files/${encodeURIComponent(name)}/download?kind=${kind}`,
+      { headers: authHeaders() }
+    );
+    if (!res.ok) throw await fail(res);
+    const blob = await res.blob();
+    const disposition = res.headers.get("Content-Disposition") || "";
+    const match = disposition.match(/filename="?([^"]+)"?/);
+    const filename = match ? match[1] : name;
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  },
+
+  // --- admin (invite-only allowlist) ---
+  listUsers: () => request("/admin/users"),
+  createUser: (email, isAdmin = false) =>
+    request("/admin/users", {
+      method: "POST",
+      body: JSON.stringify({ email, is_admin: isAdmin }),
+    }),
+  updateUser: (id, patch) =>
+    request(`/admin/users/${id}`, { method: "PATCH", body: JSON.stringify(patch) }),
 };

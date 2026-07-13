@@ -1,5 +1,10 @@
-"""Backend test fixtures: a TestClient backed by temp per-test storage, plus
-helpers to log in, build a tiny PPTX, and poll a remediation job.
+"""Backend test fixtures: an in-memory user DB + a TestClient backed by temp
+per-test storage, plus helpers to register/log in, build a tiny PPTX, and poll
+a remediation job.
+
+Auth is DB-backed + JWT bearer: ``login`` registers a user (the allowlist),
+dev-logs-in, and attaches the ``Authorization`` header to the client so the
+existing request call sites need no per-call headers.
 """
 
 from __future__ import annotations
@@ -10,8 +15,14 @@ import time
 import pytest
 from fastapi.testclient import TestClient
 from pptx import Presentation
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
 
+import backend.app.models  # noqa: F401  (register models on Base)
+from backend.app.core.database import Base, get_db
 from backend.app.main import create_app
+from backend.app.models.user import User
 from backend.app.settings import Settings
 from remediator.config import load_config
 
@@ -19,15 +30,39 @@ API = "/api/v1"
 
 
 @pytest.fixture
-def app(tmp_path):
+def db_session():
+    """Fresh in-memory SQLite user database per test."""
+    engine = create_engine(
+        "sqlite://",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    Base.metadata.create_all(engine)
+    Session = sessionmaker(bind=engine, autoflush=False, expire_on_commit=False)
+    session = Session()
+    try:
+        yield session
+    finally:
+        session.close()
+        engine.dispose()
+
+
+@pytest.fixture
+def app(tmp_path, db_session):
     settings = Settings(
-        auth_provider="mock",
-        session_secret="test-secret",
+        google_client_id="test-client-id",
+        jwt_secret="test-secret",
         storage_dir=tmp_path / "storage",
         cors_origins=["http://localhost:5173"],
         environment="local",
     )
-    return create_app(settings=settings, config=load_config())
+    application = create_app(settings=settings, config=load_config())
+
+    def override_get_db():
+        yield db_session
+
+    application.dependency_overrides[get_db] = override_get_db
+    return application
 
 
 @pytest.fixture
@@ -47,9 +82,30 @@ def pptx_bytes() -> bytes:
     return buf.getvalue()
 
 
-def login(client: TestClient, email: str = "prof@temple.edu") -> dict:
-    resp = client.post(f"{API}/auth/login", json={"email": email})
+def register(
+    db_session,
+    email: str = "prof@temple.edu",
+    *,
+    is_admin: bool = False,
+    name: str = "Prof",
+    is_active: bool = True,
+) -> User:
+    """Add a user to the allowlist (what an admin invite does)."""
+    user = User(email=email.strip().lower(), name=name, is_admin=is_admin, is_active=is_active)
+    db_session.add(user)
+    db_session.commit()
+    db_session.refresh(user)
+    return user
+
+
+def login(
+    client: TestClient, db_session, email: str = "prof@temple.edu", *, is_admin: bool = False
+):
+    """Register + dev-login + attach the bearer header to this client."""
+    register(db_session, email, is_admin=is_admin)
+    resp = client.post(f"{API}/auth/dev-login", json={"email": email})
     assert resp.status_code == 200, resp.text
+    client.headers["Authorization"] = f"Bearer {resp.json()['access_token']}"
     return resp.json()
 
 

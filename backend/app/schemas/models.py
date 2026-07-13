@@ -5,10 +5,6 @@ from __future__ import annotations
 from pydantic import BaseModel
 
 
-class LoginRequest(BaseModel):
-    email: str
-
-
 class FileOut(BaseModel):
     name: str
     file_type: str

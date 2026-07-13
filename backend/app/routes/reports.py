@@ -7,8 +7,8 @@ import json
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import HTMLResponse
 
-from backend.app.auth.models import User
 from backend.app.deps import get_current_user, get_storage
+from backend.app.models.user import User
 from backend.app.services.storage import StorageError, StorageService
 
 router = APIRouter(prefix="/groups", tags=["reports"])

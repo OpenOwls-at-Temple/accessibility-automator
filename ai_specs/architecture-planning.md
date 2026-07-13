@@ -15,9 +15,9 @@ Accessibility Automator is a three-tier web application:
 - **Backend** — FastAPI (Python 3.11+) REST API. Handles authentication, per-user file storage, and orchestrating remediation jobs. The LLM is called **server-side only**.
 - **Remediation engine** — a standalone Python package (`remediator/`) that does the actual audit → fix → re-score → report work. It is **decoupled from the web layer**: it can be imported by the backend *and* run directly as a CLI. The engine **never imports from the backend** — the dependency is strictly one-way.
 
-There is **no relational database in Phase 1**. State lives on the server filesystem: each user gets a private workspace folder, and each remediation writes a JSON report next to its output file.
+The **only** database is a small **user-allowlist table** (who may sign in). All document state lives on the server filesystem: each user gets a private workspace folder, and each remediation writes a JSON report next to its output file.
 
-Flow: user signs in (Temple SSO, or a dev mock) → uploads files into a **group** (usually a course code) → clicks **Fix** → backend starts a **background job** that processes files one at a time → frontend **polls a status endpoint** → when done, the user sees before/after scores and a report, and downloads the remediated `_a11y` files.
+Flow: user signs in (**Google SSO**, or a local dev login) → the backend verifies the Google ID token and checks the **admin-managed allowlist**, issuing a **JWT** → user uploads files into a **group** (usually a course code) → clicks **Fix** → backend starts a **background job** that processes files one at a time → frontend **polls a status endpoint** → when done, the user sees before/after scores and a report, and downloads the remediated `_a11y` files.
 
 ---
 
@@ -41,12 +41,17 @@ project-root/
 │   └── public/
 ├── backend/                     # FastAPI web layer (MAY import remediator/)
 │   ├── app/
-│   │   ├── routes/              # auth, groups, files, jobs, reports, config
+│   │   ├── routes/              # auth, users (admin), groups, files, jobs, reports, config
 │   │   ├── schemas/             # Pydantic request/response models
 │   │   ├── services/            # storage service, job runner
-│   │   └── auth/                # auth interface + providers (mock, azure_oidc)
+│   │   ├── core/                # database (SQLAlchemy), security (JWT), identity
+│   │   ├── models/              # ORM models — user.py (the allowlist)
+│   │   └── seed.py              # create the first admin user
 │   ├── cli.py                   # Thin CLI entry (delegates to remediator/)
 │   └── tests/
+├── alembic/                     # user-allowlist DB migrations (run from repo root)
+├── render.yaml                  # Render Blueprint (backend web + static frontend)
+├── run_server.sh / run_server.ps1  # cross-OS local launchers (uv)
 └── remediator/                  # The engine — MUST NOT import from backend/
     ├── pipeline.py              # audit → fix → re-score → report orchestration
     ├── models.py                # AuditResult, FixResult, FileReport dataclasses
@@ -95,9 +100,10 @@ project-root/
 | Engine isolation | `remediator/` is import-only, one-way dependency, also runnable as CLI | Testable in isolation; reusable; lets a Canvas connector slot in for Phase 3 without touching the engine |
 | Rule organization | **Per-format** rule modules sharing common dataclasses + one scorer | PPTX and PDF checks genuinely differ (13 vs 21); per-format is simpler and more honest than forcing a single format-agnostic rule set |
 | Processing model | **Background job + status polling** (every ~2s) | LLM captioning is slow on big decks; keeps the UI responsive |
-| Auth | Pluggable `AuthProvider` interface: `MockAuthProvider` (dev) + `AzureOIDCProvider` (prod) | Decouples build from Temple IT approval; restrict to Temple accounts in prod |
+| Auth | **Google SSO (GIS ID token, verified server-side)** + an **admin-managed allowlist** (`users` table); **JWT bearer** sessions; local-only dev login | No self-service sign-up (students can't flood it): Google verifies *identity*, the allowlist authorizes. Mirrors `owl-jeopardy-pilot`. |
 | LLM access | Vision model behind an **OpenAI-compatible** `LLMProvider`, server-side only | Provider/model swappable; API key stays on server |
-| Storage | Server filesystem, per-user folders; metadata in JSON | No DB needed in Phase 1; per-user isolation by design |
+| Storage | Server filesystem for documents (per-user folders; metadata in JSON) **+ a small SQL `users` table** for the allowlist | Documents stay on disk (per-user isolation); only auth needs a DB — SQLite (local) / Supabase Postgres (prod), via SQLAlchemy + Alembic |
+| Packaging | **uv** (`pyproject.toml` deps + `uv.lock`), single root project spanning `remediator/` + `backend/` | Reproducible installs; `uv run` self-heals the venv per-OS (the repo is shared via OneDrive across macOS/Windows) |
 | Output naming | `<name>_a11y.<ext>` in `output/<group>/`; originals untouched | Clear, non-destructive convention |
 | Scoring | Weighted average by severity, with a Severe-issue score cap | Approximates Panorama's weighted model (see Domain Knowledge) |
 | Honesty | Report two numbers: **checker-passing score** and **truly-remediated estimate** (excludes placeholders) | Keeps the tool honest about "passes the checker" vs "actually accessible" |
@@ -200,6 +206,22 @@ class FixResult:
     success: bool
 ```
 
+### `User` (SQLAlchemy — the allowlist, the only DB table)
+
+```python
+class User(Base):            # table: users
+    id: str                  # uuid
+    email: str               # unique; the invite key
+    name: str
+    is_admin: bool           # can invite/deactivate other users
+    is_active: bool          # deactivated users cannot sign in
+    created_at: datetime
+    last_login_at: datetime | None
+    # username (property) = username_from_email(email) — the filesystem workspace key
+```
+
+Documents are **not** in the database — the `users` table only governs sign-in. Everything below (workspaces, scores, signoffs) stays on the filesystem.
+
 ### User metadata (`users/<email_username>/metadata.json`)
 
 ```json
@@ -236,9 +258,10 @@ Base path: `/api/v1`
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/auth/me` | Current user (name, email, username) |
-| GET | `/auth/login` · `/auth/sso/callback` | Sign in (mock in dev, Azure OIDC in prod) |
-| POST | `/auth/logout` | Sign out |
+| POST | `/auth/login` | Verify a Google ID token + allowlist check → app JWT |
+| POST | `/auth/dev-login` | Local-only login for a registered user → app JWT (404 in prod) |
+| GET | `/auth/me` | Current user (id, email, name, is_admin) |
+| GET · POST · PATCH | `/admin/users` · `/admin/users/{id}` | Admin only: list / invite-by-email / update (activate, promote) users |
 | GET | `/groups` | List the user's groups with summary scores |
 | GET | `/groups/{group}` | List files in a group (input + output) |
 | POST | `/groups/{group}/files` | Upload one or more files into a group (multipart; PPTX/PDF only) |
@@ -254,12 +277,20 @@ Base path: `/api/v1`
 
 ## Authentication
 
-`AuthProvider` interface with two implementations selected by `AUTH_PROVIDER`:
+**Google SSO + an admin-managed invite allowlist** (mirrors `owl-jeopardy-pilot`). Google verifies *identity*; a `users` table decides *authorization*. There is **no self-service sign-up** and **no auto-provisioning** — this is deliberate, because a plain `@temple.edu` domain check can't distinguish faculty from students, so an admin curates who gets in.
 
-- **`MockAuthProvider`** (dev) — enter an email, get the matching workspace. No external dependency.
-- **`AzureOIDCProvider`** (prod) — OAuth2 / OIDC against Microsoft Azure AD, redirecting to the Temple login. Restricts sign-in to the Temple tenant. Requires an app registration, redirect URI, client id/secret, and tenant id from Temple IT (early Phase 1 task, gated on IT approval — not a hard blocker).
+Flow:
 
-A successful sign-in establishes a session (signed cookie or JWT). Middleware resolves the current user → their workspace path; users can never access another user's folder.
+1. The frontend renders a **Google Identity Services** button (`accounts.google.com/gsi/client`) and receives a Google **ID token** (`credential`).
+2. `POST /api/v1/auth/login {credential}` — the backend verifies the token via Google's `tokeninfo` endpoint, checks `aud == GOOGLE_CLIENT_ID`, and requires the email to end in `ALLOWED_EMAIL_DOMAIN` (`temple.edu`).
+3. The email must exist and be active in the `users` table, else **403 "Account not registered."** On success the backend mints a short-lived **app JWT** (HS256, authlib) which the frontend stores and sends as `Authorization: Bearer`.
+4. `get_current_user` decodes the JWT and loads the active user; the workspace path is derived from the **authenticated** email (`username_from_email`), never a client-supplied path — so users can never reach another's folder.
+
+**Admin invite:** admins (`is_admin`) call `POST /api/v1/admin/users {email}` to add Temple users, and `PATCH` to promote/deactivate. Seed the first admin with `python -m backend.app.seed --admin you@temple.edu`.
+
+**Dev login:** `POST /api/v1/auth/dev-login {email}` skips Google but still requires a registered, active user; it returns **404 outside `ENVIRONMENT=local`**. It backs the "Local dev login" box so the app is usable before Google credentials exist.
+
+Provider details (Google OAuth web client, restricting to the Temple domain) live in `ai_specs/deployment.md`.
 
 ---
 
@@ -282,11 +313,14 @@ A successful sign-in establishes a session (signed cookie or JWT). Middleware re
 | `LLM_API_KEY` | API key for the OpenAI-compatible LLM endpoint |
 | `LLM_BASE_URL` | Base URL of the LLM endpoint (lets us swap providers) |
 | `LLM_MODEL` | Model name to use (vision-capable) |
-| `AUTH_PROVIDER` | `mock` or `azure` |
-| `AZURE_CLIENT_ID` / `AZURE_CLIENT_SECRET` / `AZURE_TENANT_ID` / `AZURE_REDIRECT_URI` | Azure AD / Temple SSO config (prod only) |
-| `SESSION_SECRET` | Secret for signing the session cookie / JWT |
-| `STORAGE_DIR` | Root directory for per-user workspaces |
-| `CORS_ORIGINS` | Allowed frontend origins |
+| `GOOGLE_CLIENT_ID` | Google OAuth **web** client ID (same value the frontend uses as `VITE_GOOGLE_CLIENT_ID`) |
+| `ALLOWED_EMAIL_DOMAIN` | Sign-in restricted to this email domain (default `temple.edu`) |
+| `JWT_SECRET` | Secret for signing the app JWT session token |
+| `DATABASE_URL` | User-allowlist DB — SQLite locally, Supabase Postgres in prod |
+| `STORAGE_DIR` | Root directory for per-user document workspaces |
+| `FRONTEND_URL` | Base URL of the frontend (CORS + links) |
+| `CORS_ORIGINS` | Allowed frontend origins (defaults to `FRONTEND_URL`) |
+| `ENVIRONMENT` | `local` or `production` (`production` disables `/auth/dev-login`) |
 
 ---
 
@@ -345,13 +379,13 @@ server:
 3. `remediator/fixers/pptx_fixer.py` + `llm/provider.py` + `ai_fixer.py` — PPTX fixes incl. AI.
 4. `remediator/reporter.py` + `backend/cli.py` — end-to-end audit→fix→report on PPTX via CLI.
 5. `remediator/rules/pdf_rules.py` + `handlers/pdf_handler.py` + `fixers/pdf_fixer.py` — PDF incl. OCR.
-6. `backend/app/` — auth (mock first), storage service, job runner, routes.
-7. `frontend/` — sign-in, file explorer, upload, status polling, report viewer, sign-off modal.
-8. `AzureOIDCProvider` — wire real Temple SSO once IT approval lands.
+6. `backend/app/` — DB + `users` model + Alembic, auth (Google verify + JWT + allowlist + dev-login), admin user routes, storage service, job runner, routes.
+7. `frontend/` — Google sign-in + dev login, file explorer, upload, status polling, report viewer, sign-off modal, admin users page.
+8. Google OAuth web client — set `GOOGLE_CLIENT_ID` / `VITE_GOOGLE_CLIENT_ID` and seed the first admin to enable real sign-in.
 
 ---
 
 ## Deployment
 <!-- Full detail in ai_specs/deployment.md -->
 
-Primary target is **Render** (FastAPI web service + static frontend build + a persistent disk mounted for `STORAGE_DIR`), with the **Temple data center** as the alternative if access and approval are obtained. No database to provision. OCR requires Tesseract installed in the backend image.
+Primary target is **Render** via `render.yaml` (FastAPI web service + static frontend build + a persistent disk mounted for `STORAGE_DIR`), with the **Temple data center** as the alternative if access and approval are obtained. The only database is the user allowlist — **Supabase Postgres** in prod (or SQLite on the persistent disk); Alembic runs `upgrade head` on each deploy. OCR requires Tesseract installed in the backend image (a Docker runtime).

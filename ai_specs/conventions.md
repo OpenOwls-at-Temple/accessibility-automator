@@ -12,10 +12,13 @@
 | Technology | Version |
 |------------|---------|
 | Python | 3.11+ |
+| Package manager (Python) | **uv** (`pyproject.toml` + `uv.lock`; no `requirements.txt`) |
 | Node.js | 20+ |
 | React | 18+ |
 | Vite | 5+ |
 | FastAPI | 0.111+ |
+| SQLAlchemy | 2+ (with Alembic for migrations) |
+| Authlib | 1.3+ (JWT) |
 | python-pptx | 0.6.23+ |
 | pikepdf | 8+ |
 | pytesseract | 0.3.10+ (requires Tesseract installed on the OS) |
@@ -56,6 +59,19 @@
 - A remediation job must **always finish and produce a valid output file**, even if every LLM call fails — failures degrade to placeholders, never crashes.
 - Keep **checker-passing** and **truly-remediated** scores distinct; never report a placeholder as a genuine fix.
 - Each user can only access their own workspace; resolve the workspace path from the authenticated user, never from a client-supplied path.
+
+## Package management (Python)
+
+- Use **uv**. Add/remove dependencies in `pyproject.toml` (runtime under `[project.dependencies]`, tooling under `[dependency-groups] dev`) and commit the updated **`uv.lock`**. There is **no `requirements.txt`**.
+- Run things with `uv run …` (e.g. `uv run pytest`, `uv run uvicorn backend.app.main:app`). On a manually-managed venv (e.g. the Mac `~/.venvs/...`), activate it and skip the `uv run` prefix.
+- Never `pip install` into the project ad hoc — add the dep to `pyproject.toml` and re-lock.
+
+## Auth conventions
+
+- Sign-in is **Google SSO + an admin-managed allowlist**; the backend **never auto-provisions** a user. Google verifies identity, the `users` table authorizes.
+- Sessions are **JWT bearer** tokens (authlib, HS256), signed with `JWT_SECRET`; the frontend sends `Authorization: Bearer`. Because a bearer token can't ride a plain `<a href>`, authed file downloads go through a fetch-then-blob helper.
+- `/auth/dev-login` must stay **local-only** (404 when `ENVIRONMENT != local`) and still require a registered, active user.
+- DB schema changes go through an **Alembic migration** (never `create_all` in app startup); keep migrations additive/backward-compatible.
 
 ---
 
@@ -104,5 +120,6 @@
 - Never let `remediator/` import from `backend/`.
 - Never skip writing tests to save time.
 - Never hardcode a specific LLM vendor SDK or model — use the configurable provider.
-- Never use a library not in `requirements.txt` / `package.json` without asking first.
+- Never add a library without declaring it in `pyproject.toml` (+ `uv.lock`) / `package.json` — and ask first.
+- Never auto-provision a user on sign-in, and never leave `/auth/dev-login` enabled outside `local`.
 - Never expose secrets or environment variables in frontend code.

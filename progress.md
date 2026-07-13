@@ -6,12 +6,12 @@
 ## Current Phase
 <!-- Which phase are we actively working on? e.g. Phase 1 -->
 
-**Active Phase:** Phase 1 — engine (PPTX + PDF), FastAPI backend, and the React frontend are all in. Phase 1 feature-complete (pending real Azure SSO + PDF OCR follow-ups).
+**Active Phase:** Phase 1 — engine (PPTX + PDF), FastAPI backend, and the React frontend are all in, now with **real Google SSO + invite-only allowlist**, **uv** packaging, and a **Render blueprint**. Phase 1 feature-complete (pending a Google OAuth client id for live SSO + PDF OCR follow-ups).
 
 ## Status Summary
 <!-- One or two sentences describing where the project stands right now -->
 
-Full stack now exists. The `remediator/` engine audits/fixes/re-scores/reports **PPTX (P1–P13) and PDF**; the **FastAPI backend** wraps it (mock auth, per-user storage with path-traversal protection, grouped uploads, background jobs + polling, reports, sign-off); and the **React (Vite) frontend** provides sign-in, the workspace home page (top panel + file explorer), upload, the **Fix** button with live job progress, and a report viewer with placeholder sign-off — all wired to the API with cookie auth. Backend/engine: 41 Python tests pass. Frontend: builds clean, ESLint clean, 4 Vitest tests pass; dev server serves the app. **Not yet done:** a full in-browser click-through (build/lint/unit verified, but no headless-browser E2E yet). **Deferred follow-ups:** PDF OCR (D8), PDF structure-tree/alt-text (D1/D3), real Azure/Temple SSO.
+Full stack now exists. The `remediator/` engine audits/fixes/re-scores/reports **PPTX (P1–P13) and PDF**; the **FastAPI backend** wraps it (**Google SSO + admin-managed invite allowlist**, JWT bearer sessions, per-user storage with path-traversal protection, grouped uploads, background jobs + polling, reports, sign-off, admin user management); and the **React (Vite) frontend** provides Google/dev sign-in, the workspace home page (top panel + file explorer), upload, the **Fix** button with live job progress, a report viewer with placeholder sign-off, and an admin **Manage users** page — all wired to the API with bearer-token auth. Packaging is **uv** (`pyproject.toml` + `uv.lock`, no `requirements.txt`); the user allowlist is a small SQL table (SQLite local / Supabase prod) migrated with **Alembic**; deploy is a **`render.yaml`** blueprint + cross-OS run scripts + CI. Backend/engine: **51 Python tests pass**. Frontend: builds clean, ESLint clean, 4 Vitest tests pass. Live HTTP smoke test green (dev-login/allowlist/admin-invite/Google-503). **Not yet done:** a full in-browser click-through; a real Google OAuth client id for production SSO. **Deferred follow-ups:** PDF OCR (D8), PDF structure-tree/alt-text (D1/D3).
 
 ---
 
@@ -57,6 +57,14 @@ The four `feature/*` branches were intentionally **kept** (not deleted) after me
 - [x] React frontend (`frontend/`, Vite) — `services/api.js` (cookie auth), `useAuth`/`useJobStatus` hooks, components (SignInForm, TopPanel, FileExplorer, UploadModal, ReportViewer), pages (HomePage, ReportPage), OpenOwls-themed CSS; ESLint + Prettier + Vitest config; 4 tests passing; builds clean — 2026-06-14
 - [x] Full Phase 1 stack landed on `main` (PR #5); verified green on `main` — 2026-06-14
 - [x] `docs/application-user-guide.html` — end-user guide: run via CLI or web app, read before/after scores, enable AI alt text (matches the OpenOwls getting-started theme) — 2026-06-14
+- [x] Bug fixes from first hands-on PPTX testing (Mac) — (1) title fixer no longer crashes on slides with no title placeholder (Blank layout): `ai_fixer.py` located the layout title via `shapes.title`, which `LayoutShapes` lacks — now found by placeholder idx 0, degrading to unfixed instead of raising; (2) `reportlab` added as a dep (used by PDF test fixtures, was missing so PDF tests errored on a clean install); (3) uploads now accept **filenames with spaces** (`storage.py` safe-name regex) — traversal chars still blocked. Regression tests added for (1) and (3); 43 tests pass — 2026-07-13
+- [x] **Sync to `owl-jeopardy-pilot`: Google SSO + invite-only auth, uv packaging, Render deploy** — 2026-07-13
+  - Packaging → **uv**: deps moved into `pyproject.toml` + `uv.lock`; `requirements.txt` deleted.
+  - Auth rewritten to **Google Identity Services + admin allowlist + JWT bearer** (mirrors owl): `core/database.py` (SQLAlchemy), `core/security.py` (authlib JWT, `get_current_user`/`get_current_admin`), `core/identity.py`, `models/user.py`, `routes/auth.py` (Google verify + `@temple.edu` + allowlist + local-only `dev-login`), `routes/users.py` (admin invite/list/patch), `seed.py` (first admin), Alembic `0001_users`. Removed the old `auth/` provider+cookie layer and Azure/mock/`SESSION_SECRET` settings.
+  - Frontend → **bearer + Google**: `services/api.js` (localStorage token, `Authorization`, authed-download blob helper), `useAuth` (ssoLogin/devLogin), `SignInForm` (GIS button + dev box), new `AdminUsers` page + route + nav link.
+  - Deploy: `render.yaml` (uv build, `alembic upgrade head`, persistent disk for `STORAGE_DIR`, Google/JWT/DB env), `run_server.sh` + `run_server.ps1`, `.github/workflows/ci.yml`, rewritten `.env.example`s.
+  - Tests: backend conftest → in-memory user DB + JWT fixtures; rewrote `test_auth`, added `test_admin_users`, adapted workspace/flow (kept traversal/spaces/isolation). **51 Python + 4 Vitest pass; black/ruff/eslint clean; `vite build` clean; live HTTP smoke green.**
+  - All `ai_specs/`, `README`, `frontend/README`, and the HTML user guide updated to match.
 
 ---
 
@@ -65,7 +73,7 @@ The four `feature/*` branches were intentionally **kept** (not deleted) after me
 
 | Item | Reason | Owner |
 |------|--------|-------|
-| Real Azure AD / Temple SSO | Needs Temple IT app registration (client id/secret, tenant, redirect URI). Not a hard blocker — dev uses `AUTH_PROVIDER=mock`. | Faculty + Temple IT |
+| Live Google SSO | Needs a Google Cloud OAuth **web client ID** (set `GOOGLE_CLIENT_ID` / `VITE_GOOGLE_CLIENT_ID`) + a seeded admin. Not a hard blocker — local dev uses the dev-login box. | Faculty |
 
 ---
 
@@ -75,7 +83,7 @@ The four `feature/*` branches were intentionally **kept** (not deleted) after me
 - [ ] Full-stack browser E2E: run backend + frontend together and click through sign-in → upload → Fix → report (headless browser); add a couple of frontend integration tests for FileExplorer/ReportViewer against a mocked API.
 - [ ] PDF OCR (D8): add a text layer to scanned PDFs (Tesseract via pytesseract/pdf2image or ocrmypdf as a subprocess); guard on binary availability and degrade to report-only otherwise.
 - [ ] PDF structure (D1/D3/D4/D5/D7): synthesize a logical structure tree and write `/Alt` on figures (evaluate Adobe Auto-Tag API; likely partly Phase 2 per the risk note).
-- [ ] Wire real `AzureOIDCProvider` (OAuth2/OIDC redirect + tenant restriction) once Temple IT app registration lands.
+- [ ] Create a Google Cloud OAuth web client + seed an admin, then verify the real Google sign-in path end-to-end in a browser.
 - [ ] Validate real PPTX captioning against a live OpenAI-compatible endpoint (set `LLM_*`); spot-check alt-text quality per `llm-integration.md` evaluation targets.
 
 ---
@@ -86,6 +94,7 @@ The four `feature/*` branches were intentionally **kept** (not deleted) after me
 - Phase 1 handles **both PPTX and PDF**; engine is built around pluggable per-format handlers/rules so Word/video are easy to add in Phase 2.
 - LLM is behind an **OpenAI-compatible interface** — no vendor SDK hard-coded.
 - Report surfaces **two scores**: checker-passing (counts placeholders as passing) vs truly-remediated (excludes them).
+- **Auth is invite-only by design** (Google SSO + admin allowlist, no auto-provision): a `@temple.edu` domain check can't distinguish students from faculty, so an admin curates access. This adds the app's **only** database — a small `users` table; all documents remain on the filesystem. Chosen to match `owl-jeopardy-pilot`'s login mechanism.
 - **Highest-risk area:** PDF structural tagging (D1/D4/D7) — pikepdf is low-level; expect many "needs review" results.
 - A prior similar planning doc (`accessibility-planning.md`, by another author) informed the engine details (rule tables, scoring, dataclasses); its single-user/no-auth and hard-coded-Anthropic choices were intentionally overridden.
 
@@ -94,6 +103,8 @@ The four `feature/*` branches were intentionally **kept** (not deleted) after me
 ## Session Log
 <!-- Brief note after each work session. Most recent at the top. -->
 
+- **2026-07-13 (sync to owl-jeopardy-pilot: auth + uv + deploy)** — Aligned this app's **auth-security, packaging, and deployment** with `owl-jeopardy-pilot`. Auth is now **Google SSO (GIS ID token verified server-side) + an admin-managed invite allowlist + JWT bearer**, replacing the "any Temple email" mock (the concern: a domain check can't tell students from faculty, so access is invite-only). Introduced a **minimal SQL users table** (SQLAlchemy + Alembic; SQLite local / Supabase prod) — the app's only DB; documents stay on the filesystem. Migrated packaging to **uv** (`pyproject.toml` + `uv.lock`, dropped `requirements.txt`). Rebuilt the frontend for bearer tokens + a Google button + a **Manage users** admin page, and converted file downloads to authed fetch-blobs. Added `render.yaml`, cross-OS `run_server.*`, and CI. Rewrote the backend test harness (in-memory user DB + JWT fixtures) and specs/README/user-guide. **51 Python + 4 Vitest tests pass; black/ruff/eslint clean; `vite build` clean; live HTTP smoke green.** Remaining: a real Google OAuth client id + browser click-through. On branch `feature/google-sso-invite-only`.
+- **2026-07-13 (first hands-on PPTX testing + fixes)** — Set up a Mac dev venv at `~/.venvs/accessibility-automator` (the in-repo `.venv/` is the Windows one; repo lives in a shared OneDrive folder used from both OSes) and exercised the PPTX path from the CLI. Testing surfaced and fixed three issues: (1) **crash** in the slide-title fixer on decks whose slides have no title placeholder — `ai_fixer._ensure_title_placeholder` read `slide.slide_layout.shapes.title`, but `LayoutShapes` has no `.title` (only `SlideShapes` does), so it raised `AttributeError` and killed the whole job; now it finds the layout title by placeholder idx 0 and degrades to "not fixed" per the never-crash rule. (2) **`reportlab` missing from `requirements.txt`** though the PDF test fixtures import it — added it (a clean install now runs the full suite). (3) **filenames with spaces** were rejected by the storage safe-name regex — added space to the allowed set (traversal chars `..`/`/`/`\\` still blocked; frontend already URL-encodes names). Verified a demo deck 50→100 (checker)/71 (truly remediated) with valid reopenable output; added regression tests; **43 Python tests pass**, black/ruff clean. Also created local `.env` files and confirmed backend+frontend start (no full browser click-through yet). Committed to `docs/user-guide-and-progress`.
 - **2026-06-14 (landing + docs)** — Merged **PR #5** (`feature/react-frontend` → `main`) to bring the full stack onto `main` (the stacked #1–#4 had merged into intermediate branches). Confirmed green on `main`: 41 Python + 4 frontend tests, `vite build` clean. Merged feature branches were intentionally kept. Wrote `docs/application-user-guide.html` — a faculty-facing guide for running the app (CLI + web) and reading the before/after scores. Phase 1 is now fully on `main`; remaining items are the deferrals in Up Next (live-LLM check, deeper PDF, real SSO, browser E2E).
 - **2026-06-14 (status review)** — Reviewed where everything stands. All Phase 1 code is written/tested (41 Python + 4 frontend tests passing, linters clean). Discovered the stacked PRs #1–#3 were merged into their intermediate base branches rather than up to `main`, so `main` has the PPTX path only; PDF/backend/frontend live in PR #4's chain. Recommended retargeting #4 to `main` to land the rest in one merge (see Integration / Branch State). No code changes this session.
 - **2026-06-14** — Built the React (Vite) frontend on a branch stacked on the backend branch. `services/api.js` talks to the API with `credentials: "include"` (cookie auth); `useAuth` context checks the session on mount; `useJobStatus` polls jobs ~2s. UI: SignInForm (mock login), HomePage with TopPanel (name/email) + FileExplorer (groups/files, before→after→truly-fixed scores, **Fix** button with live progress, download original/remediated, report link), UploadModal (group + PPTX/PDF), and ReportPage/ReportViewer (three scores + genuine/placeholder/manual sections with placeholder Acknowledge → POST signoff). OpenOwls-themed CSS. ESLint/Prettier/Vitest configured; 4 tests pass; `vite build` and `eslint` clean; dev server serves the app and the entry module compiles. Did **not** yet do a headless-browser click-through (added to Up Next).

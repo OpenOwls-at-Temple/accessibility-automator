@@ -22,3 +22,6 @@ dist/
 # Per-user workspace storage (runtime data)
 storage/
 data/
+
+# Local user-allowlist database (SQLite)
+*.db

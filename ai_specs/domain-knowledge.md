@@ -98,7 +98,7 @@ Accessibility Automator is a standalone tool that **remediates these same files 
 | Service | Purpose | Notes |
 |---------|---------|-------|
 | Vision-capable LLM (via OpenAI-compatible API) | Generate alt text and slide/document titles | Provider swappable; called server-side only; cost is a real consideration |
-| Microsoft Azure AD / Temple SSO (OAuth2 / OIDC) | Restrict access to Temple accounts; per-user workspaces | Production auth; requires Temple IT app registration. Dev uses a mock login. |
+| Google SSO (Google Identity Services) + admin invite allowlist | Restrict access to added Temple accounts; per-user workspaces | Production auth; needs a Google OAuth web client ID. Dev uses a local dev-login. |
 | Canvas LMS API *(Phase 3 only)* | Pull course files and push remediated files back | Not used in Phase 1 |
 | YuJa Panorama *(Phase 3 only)* | Read the vendor's real scores / issue lists | Integrated into Canvas via LTI 1.1 / 1.3; not used in Phase 1 |
 

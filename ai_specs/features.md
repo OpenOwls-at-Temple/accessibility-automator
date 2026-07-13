@@ -25,13 +25,15 @@ Each feature includes a short description and a set of acceptance criteria writt
 **I want to** sign in so that only Temple users can access the app and I get my own private workspace,
 **So that** my course materials are kept separate from everyone else's and access is restricted to my institution.
 
-**Notes:** Authentication sits behind a swappable interface. A **dev/mock login** (enter an email, get the matching workspace) is used for local development. The production provider is **Microsoft Azure AD / Temple SSO (OAuth2 / OIDC)**, which redirects to the Temple University login. Wiring up real Azure SSO is an early Phase 1 task that depends on Temple IT approval (app registration, redirect URIs, client secret, tenant restriction) and is **not a hard blocker** for the rest of Phase 1.
+**Notes:** Sign-in is **Google SSO (Google Identity Services)** plus an **admin-managed invite allowlist** — access is **invite-only**, with **no self-service sign-up**. This is deliberate: a plain `@temple.edu` domain check can't tell faculty from students, so an admin decides who gets in (which also caps the user base / attack surface). Google verifies identity; the backend checks the email domain **and** that an admin has added the account, then issues an app **JWT**. A **local-only dev login** (registered email, no Google) supports development before Google credentials exist. The first admin is seeded via a CLI command; admins then invite others from a **Manage users** page.
 
 **Acceptance Criteria:**
-- [ ] Given I am not signed in, when I open the app, then I am prompted to sign in and cannot see any files.
-- [ ] Given I sign in (mock in dev, Azure SSO in production), when authentication succeeds, then I land on my personal home page.
-- [ ] Given the production provider is active, when a non-Temple account attempts to sign in, then access is denied.
-- [ ] Given I am signed in, when my workspace is created, then a folder keyed by my email username exists with `input/` and `output/` subfolders.
+- [ ] Given I am not signed in, when I open the app, then I am prompted to sign in with Google and cannot see any files.
+- [ ] Given my Temple account has been added by an admin, when I sign in with Google, then I land on my personal home page.
+- [ ] Given a non-Temple account, when it attempts to sign in, then access is denied (wrong email domain).
+- [ ] Given a Temple account that no admin has added, when it signs in with Google, then access is denied ("Account not registered").
+- [ ] Given I am an admin, when I open **Manage users**, then I can add a Temple user by email, and deactivate or promote users.
+- [ ] Given I sign in for the first time, when my workspace is created, then a folder keyed by my email username exists with `input/` and `output/` subfolders.
 
 ---
 
