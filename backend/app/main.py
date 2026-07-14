@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from pathlib import Path
 from dotenv import load_dotenv
-load_dotenv(Path(__file__).resolve().parents[3] / ".env")  # always finds .env at repo root
+load_dotenv(Path(__file__).resolve().parents[2] / ".env")  # always finds .env at repo root
 
 from fastapi import APIRouter, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
