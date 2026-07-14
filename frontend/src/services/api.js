@@ -111,7 +111,10 @@ export const api = {
     const blob = await res.blob();
     const disposition = res.headers.get("Content-Disposition") || "";
     const match = disposition.match(/filename="?([^"]+)"?/);
-    const filename = match ? match[1] : name;
+    // Fall back to a deterministic name if the header is unreadable — the
+    // remediated file should keep its `_a11y` suffix, not the original name.
+    const fallback = kind === "output" ? name.replace(/\.([^.]+)$/, "_a11y.$1") : name;
+    const filename = match ? match[1] : fallback;
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;

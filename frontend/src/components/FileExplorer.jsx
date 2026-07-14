@@ -36,8 +36,11 @@ export default function FileExplorer() {
     load();
   }, [load]);
 
-  const jobStatus = useJobStatus(activeJob?.id, () => {
+  const jobStatus = useJobStatus(activeJob?.id, (settled) => {
     setActiveJob(null);
+    // Some files may have failed while others succeeded — surface the summary;
+    // per-file outcomes show on each row's status badge after reload.
+    if (settled?.error) setError(settled.error);
     load();
   });
 

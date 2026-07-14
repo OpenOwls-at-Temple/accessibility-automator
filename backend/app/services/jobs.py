@@ -11,7 +11,7 @@ from __future__ import annotations
 import threading
 import uuid
 from concurrent.futures import ThreadPoolExecutor
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from backend.app.services.storage import StorageService
 from remediator.config import Config
@@ -36,6 +36,8 @@ class Job:
     current_file: str | None = None
     error: str | None = None
     overrides: dict[str, str] | None = None
+    # filename -> error message, for files that failed. The batch keeps going.
+    failures: dict[str, str] = field(default_factory=dict)
 
     @property
     def files_total(self) -> int:
@@ -73,16 +75,27 @@ class JobManager:
         job.status = STATUS_RUNNING
         # One provider per job; None when no LLM is configured (-> placeholders).
         provider = build_provider(self.config.llm)
-        try:
-            for filename in job.files:
-                job.current_file = filename
+        for filename in job.files:
+            job.current_file = filename
+            try:
                 self._remediate_one(job, filename, provider)
+            except Exception as exc:  # noqa: BLE001 — one bad file must not abort the batch
+                job.failures[filename] = str(exc)
+            finally:
+                # Count every attempted file so progress still reaches 100%.
                 job.files_done += 1
                 job.current_file = None
-            job.status = STATUS_DONE
-        except Exception as exc:  # noqa: BLE001 — record, never crash the worker
+        # A batch is only an error if *every* file failed; otherwise it completes
+        # (partial success). Per-file outcomes are on each file's status badge;
+        # ``error`` carries a summary of whatever failed.
+        if job.failures and len(job.failures) == job.files_total:
             job.status = STATUS_ERROR
-            job.error = str(exc)
+        else:
+            job.status = STATUS_DONE
+        if job.failures:
+            job.error = f"{len(job.failures)} of {job.files_total} file(s) failed: " + ", ".join(
+                f"{name} ({msg})" for name, msg in job.failures.items()
+            )
 
     def _remediate_one(self, job: Job, filename: str, provider) -> None:
         input_path = self.storage.input_path(job.username, job.group, filename)
