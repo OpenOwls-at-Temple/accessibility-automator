@@ -31,8 +31,14 @@ PDF + backend + frontend in one go. Verified on `main`: 41 Python + 4 frontend t
 | #3 | FastAPI backend | merged (into pdf branch) | ✓ via #5 |
 | #4 | React frontend | merged (into backend branch) | ✓ via #5 |
 | #5 | Land stack on `main` | **merged** | ✓ |
+| #9 | Phase 2 F11/F12 + Fable 5 (Surya's work rebased) | **merged** | ✓ |
 
-The four `feature/*` branches were intentionally **kept** (not deleted) after merging.
+**Branch cleanup (2026-07-14):** all merged/superseded branches were deleted from
+`origin` and locally after verifying `main` is a strict superset of each (fully
+merged, or `git cherry`-clean merge-commit tips). The earlier decision to keep the
+`feature/*` branches was intentionally reversed. **Only `main` and Surya's
+`fix/test-suite-issues` remain** — the latter left in place for Surya to retire himself
+(its useful commits, F11/F12 + the Fable 5 provider, are already on `main` via PR #9).
 
 ---
 
@@ -102,6 +108,8 @@ The four `feature/*` branches were intentionally **kept** (not deleted) after me
 
 ## Session Log
 <!-- Brief note after each work session. Most recent at the top. -->
+
+- **2026-07-14 (merge PR #9 + branch cleanup)** — Merged `feature/phase2-review` into `main` (PR #9, merge commit `dac0a73`); CI green (backend + frontend). Required bringing Surya's cherry-picked Phase 2 code up to `main`'s lint gate: black-formatted 8 files, removed a dead `audit_results` var (F841), sorted import blocks (I001), and added an E402 per-file ignore for `main.py`'s deliberate load_dotenv-before-imports. Then **cleaned up branches**: verified `main` is a strict superset of every other branch (5 fully merged; the 3 stacked `feature/*` tips are merge commits with no unique patch per `git cherry`), and deleted all 8 non-Surya branches from `origin` and locally. **Only `main` and Surya's `fix/test-suite-issues` remain.**
 
 - **2026-07-13 (rebase Surya's Phase 2 work onto the SSO/uv main → `feature/phase2-review`)** — Surya Narayanan's `fix/test-suite-issues` branch had built **Phase 2 F11 (batch per-file progress) + F12 (human-in-the-loop AI review)** and an **Anthropic/Fable 5 provider**, but it branched off `main` *before* the Google-SSO + uv + Render migration landed, so a direct PR conflicted on 9 files (incl. a modify/delete on `requirements.txt`) and would have reverted the new auth/packaging. Created **`feature/phase2-review` off current `main`** and **cherry-picked the two feature commits** (`1967752` F11/F12, `2bb5395` Fable 5), preserving Surya's authorship. Resolved conflicts by keeping `main`'s JWT-auth + uv side and layering the Phase 2 additions on top: `files.py` now imports `User` from `models/user` (SSO) instead of the retired `auth/models`; the new `scan`/`apply-review` endpoints and `scanFile`/`applyReview` API methods ride on `main`'s bearer-token `request()` helper; `requirements.txt` was **not** resurrected (`python-dotenv` was already in `pyproject.toml`); the "Fix All" batch button + `current_file` progress + `ReviewModal.jsx` all carried over. Also fixed a latent bug in Surya's Fable 5 commit: `load_dotenv()` used `parents[3]` (one level **above** the repo root) so `.env` silently never loaded — corrected to `parents[2]`. **Verified: 51 Python tests pass, `create_app()` imports under the new auth, ESLint clean, 4 Vitest pass, `vite build` clean.** Branch ready for a PR into `main`. (The original `fix/test-suite-issues` is left untouched.)
 
