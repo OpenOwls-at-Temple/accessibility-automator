@@ -23,5 +23,10 @@ dist/
 storage/
 data/
 
+# Local test decks — never commit real faculty/student content (copyright/FERPA).
+# The folder + README are tracked so the convention is discoverable; the files are not.
+testdata/*
+!testdata/README.md
+
 # Local user-allowlist database (SQLite)
 *.db
