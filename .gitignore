@@ -19,6 +19,9 @@ venv/
 node_modules/
 dist/
 
+# Runtime logs
+*.log
+
 # Per-user workspace storage (runtime data)
 storage/
 data/
