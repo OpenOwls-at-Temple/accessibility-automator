@@ -20,7 +20,11 @@
 
 body {
   margin: 0;
-  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-family:
+    system-ui,
+    -apple-system,
+    "Segoe UI",
+    sans-serif;
   background: var(--navy);
   color: var(--text-body);
   line-height: 1.5;
@@ -103,6 +107,40 @@ input {
   font-weight: 700;
   color: #fff;
   font-size: 18px;
+  text-decoration: none;
+}
+
+.nav-links {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Menu items: text links plus a matching sign-out button. */
+.nav-link {
+  background: none;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 14px;
+  color: var(--text-body);
+  font-weight: 600;
+  font-size: 15px;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.nav-link:hover {
+  color: var(--text-head);
+  background: var(--navy-card);
+}
+
+/* react-router adds .active to the current NavLink. */
+.nav-link.active {
+  color: var(--owl-gold);
+}
+
+.nav-signout {
+  color: var(--muted);
 }
 
 .page {
