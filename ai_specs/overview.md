@@ -70,7 +70,7 @@ Accessibility Automator removes the manual loop: a faculty member uploads a file
 | Document Processing | python-pptx (PPTX), pikepdf / reportlab / OCR tooling (PDF) | Read, edit, and re-tag documents programmatically |
 | AI / LLM | Vision-capable model behind an **OpenAI-compatible interface** | Provider is swappable (e.g. OpenAI GPT-4o, Anthropic Claude via a compatible gateway, or a self-hosted model). Used for alt-text and title captioning. |
 | Auth | **Google SSO (Google Identity Services)** + an **admin-managed invite allowlist**; JWT bearer sessions (authlib). A local-only dev login is available. | Sign-in restricted to a configured Temple email domain AND to accounts an admin has added — no self-service sign-up. |
-| Storage | Server filesystem for documents (per-user folders keyed by email username) **+ a small SQL database for the user allowlist only** | Files: `input/<group>/...`, `output/<group>/...`. DB: SQLite (local) / Supabase Postgres (prod), users table only — SQLAlchemy + Alembic. |
+| Storage | Server filesystem for documents (per-user folders keyed by email username) **+ a small SQL database for the user allowlist only** | Files: `input/<group>/...`, `output/<group>/...`. DB: **SQLite on the persistent disk** in both local and prod (users table only — SQLAlchemy + Alembic); Supabase Postgres is a supported alternative. |
 | Hosting | Render (low-cost tier) — or the Temple data center if access and approval are obtained | Final choice depends on Temple IT approval timelines |
 
 ---

@@ -5,11 +5,11 @@
 # repo, and Render reads this file to create both services. It prompts for every
 # var marked `sync: false` (the secrets) at deploy time.
 #
-# The user allowlist DB is NOT defined here — production uses Supabase (see
-# ai_specs/deployment.md), not Render Postgres. Paste the Supabase pooler
-# connection string into DATABASE_URL when prompted. (Alternative: since the
-# backend already mounts a persistent disk, you may instead point DATABASE_URL
-# at a SQLite file on that disk, e.g. sqlite:////data/a11y.db, and skip Supabase.)
+# The user allowlist DB is SQLite on the backend's persistent disk
+# (DATABASE_URL=sqlite:////data/a11y.db, set below) — the allowlist is a tiny,
+# low-concurrency users table, so no external Postgres is needed. To use
+# Supabase Postgres instead, change DATABASE_URL to `sync: false` and paste the
+# pooler connection string when Render prompts (see ai_specs/deployment.md).
 #
 # Alembic runs on each deploy: the startCommand runs `alembic upgrade head`
 # before uvicorn, so the schema is ready before the new code serves traffic
@@ -20,7 +20,11 @@ services:
   - type: web
     name: accessibility-automator-backend
     runtime: python
-    plan: free
+    # Starter (paid) is required: the persistent disk below is a paid-only
+    # feature (Free instances get an ephemeral filesystem, so uploaded files,
+    # remediated outputs, AND the SQLite allowlist would be wiped on every
+    # redeploy/restart). Bump to `standard` if large image-heavy decks OOM.
+    plan: starter
     region: oregon
     # rootDir is the repo root: the API imports the root `remediator/` engine,
     # and alembic/ lives at the root next to alembic.ini.
@@ -43,7 +47,10 @@ services:
       - key: JWT_SECRET
         generateValue: true        # Render generates + persists a strong secret
       - key: DATABASE_URL
-        sync: false                # Supabase pooler URL (or sqlite:////data/a11y.db)
+        # SQLite on the persistent disk below — the allowlist is a tiny,
+        # low-concurrency users table, so no external Postgres is needed. The
+        # four slashes are intentional: sqlite:/// + the absolute path /data/...
+        value: sqlite:////data/a11y.db
       - key: GOOGLE_CLIENT_ID
         sync: false                # Google OAuth web client ID (same as frontend)
       - key: ALLOWED_EMAIL_DOMAIN
