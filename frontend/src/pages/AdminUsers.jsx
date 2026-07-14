@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import TopMenu from "../components/TopMenu.jsx";
 import { api } from "../services/api.js";
 import { useAuth } from "../hooks/useAuth.jsx";
 
@@ -51,15 +51,10 @@ export default function AdminUsers() {
 
   return (
     <>
-      <nav className="app-nav">
-        <Link className="brand" to="/">
-          🦉 Accessibility Automator
-        </Link>
-      </nav>
+      <TopMenu />
       <div className="page">
         <div className="row spread" style={{ marginBottom: 16 }}>
           <h2 style={{ margin: 0, color: "var(--text-head)" }}>Users — invite-only allowlist</h2>
-          <Link to="/">← Back to workspace</Link>
         </div>
 
         {error && <p className="error">{error}</p>}

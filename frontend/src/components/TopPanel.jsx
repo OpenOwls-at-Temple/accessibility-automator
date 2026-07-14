@@ -1,9 +1,9 @@
-import { Link } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth.jsx";
 
-// Top panel of the home page: the signed-in user's name and email (Feature 2).
+// Top panel of the workspace: the signed-in user's name and email (Feature 2).
+// Navigation and sign-out live in the top menu (TopMenu).
 export default function TopPanel() {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   return (
     <div className="card row spread">
       <div>
@@ -11,16 +11,6 @@ export default function TopPanel() {
           {user.name || user.email}
         </div>
         <div className="muted">{user.email}</div>
-      </div>
-      <div className="row" style={{ gap: 10 }}>
-        {user.is_admin && (
-          <Link className="btn-link" to="/admin">
-            Manage users
-          </Link>
-        )}
-        <button className="secondary" onClick={logout}>
-          Sign out
-        </button>
       </div>
     </div>
   );

@@ -29,6 +29,12 @@ from remediator.models import FileReport
 _SAFE_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9 ._-]*$")
 ALLOWED_EXTENSIONS = {".pptx", ".pdf"}
 
+# The suffix appended to remediated output filenames (``lecture1_<suffix>.pptx``).
+# Per-user, editable in Settings. Must be a safe filename token (no spaces or
+# separators) so it can never alter the output path.
+DEFAULT_SUFFIX = "a11y"
+_SUFFIX_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,39}$")
+
 
 class StorageError(Exception):
     """Invalid name or path — surfaced to the client as a 4xx."""
@@ -41,10 +47,10 @@ def _validate(name: str, kind: str) -> str:
     return name
 
 
-def a11y_name(filename: str) -> str:
-    """`lecture1.pptx` -> `lecture1_a11y.pptx`."""
+def a11y_name(filename: str, suffix: str = DEFAULT_SUFFIX) -> str:
+    """`lecture1.pptx` -> `lecture1_a11y.pptx` (suffix configurable per user)."""
     stem, _, ext = filename.rpartition(".")
-    return f"{stem}_a11y.{ext}"
+    return f"{stem}_{suffix}.{ext}"
 
 
 @dataclass
@@ -83,18 +89,46 @@ class StorageService:
             / _validate(filename, "filename")
         )
 
+    def _output_dir(self, username: str, group: str) -> Path:
+        return self.user_dir(username) / "output" / _validate(group, "group")
+
+    def _output_basename(self, username: str, group: str, filename: str, *, for_write: bool) -> str:
+        """Resolve a remediated file's basename.
+
+        For a *write* (a fresh Fix run) use the user's current suffix. For a
+        *read* (download/listing) prefer the name actually recorded when the
+        file was remediated, so changing the suffix never orphans old outputs;
+        fall back to the historical default for files fixed before this feature.
+        """
+        filename = _validate(filename, "filename")
+        if for_write:
+            return a11y_name(filename, self.get_user_settings(username)["filename_suffix"])
+        entry = self._file_entry(username, group, filename)
+        if entry and entry.get("output_name"):
+            return entry["output_name"]
+        return a11y_name(filename)
+
     def output_path(self, username: str, group: str, filename: str) -> Path:
-        return (
-            self.user_dir(username)
-            / "output"
-            / _validate(group, "group")
-            / a11y_name(_validate(filename, "filename"))
+        """Path to READ an existing remediated output (stored name, else legacy)."""
+        return self._output_dir(username, group) / self._output_basename(
+            username, group, filename, for_write=False
+        )
+
+    def output_write_path(self, username: str, group: str, filename: str) -> Path:
+        """Path to WRITE a new remediated output, using the user's current suffix."""
+        return self._output_dir(username, group) / self._output_basename(
+            username, group, filename, for_write=True
         )
 
     def report_path(self, username: str, group: str, filename: str, kind: str = "json") -> Path:
-        return self.output_path(username, group, filename).with_name(
-            a11y_name(_validate(filename, "filename")) + f".report.{kind}"
-        )
+        out = self.output_path(username, group, filename)
+        return out.with_name(out.name + f".report.{kind}")
+
+    def report_write_path(
+        self, username: str, group: str, filename: str, kind: str = "json"
+    ) -> Path:
+        out = self.output_write_path(username, group, filename)
+        return out.with_name(out.name + f".report.{kind}")
 
     # ── uploads ──
 
@@ -152,6 +186,32 @@ class StorageService:
     def get_metadata(self, username: str) -> dict:
         return self._read_metadata(username)
 
+    # ── per-user settings ──
+
+    def get_user_settings(self, username: str) -> dict:
+        settings = self._read_metadata(username).get("settings") or {}
+        return {"filename_suffix": settings.get("filename_suffix") or DEFAULT_SUFFIX}
+
+    def set_filename_suffix(self, username: str, suffix: str) -> str:
+        suffix = (suffix or "").strip()
+        if not _SUFFIX_RE.match(suffix):
+            raise StorageError(
+                f"Invalid filename suffix: {suffix!r}. Use letters, digits, '.', '_' or '-'."
+            )
+        self.ensure_workspace(username)
+        meta = self._read_metadata(username)
+        meta.setdefault("settings", {})["filename_suffix"] = suffix
+        self._write_metadata(username, meta)
+        return suffix
+
+    def _file_entry(self, username: str, group: str, filename: str) -> dict | None:
+        for g in self._read_metadata(username).get("groups", []):
+            if g["name"] == group:
+                for f in g.get("files", []):
+                    if f["name"] == filename:
+                        return f
+        return None
+
     def _read_metadata(self, username: str) -> dict:
         path = self.user_dir(username) / "metadata.json"
         if not path.exists():
@@ -183,7 +243,12 @@ class StorageService:
         self._write_metadata(username, meta)
 
     def update_file_scores(
-        self, username: str, group: str, filename: str, report: FileReport
+        self,
+        username: str,
+        group: str,
+        filename: str,
+        report: FileReport,
+        output_name: str | None = None,
     ) -> None:
         meta = self._read_metadata(username)
         block = self._group_block(meta, group)
@@ -195,6 +260,10 @@ class StorageService:
                     truly_remediated_score=report.truly_remediated_score,
                     status="complete",
                 )
+                # Remember the exact output name so a later suffix change never
+                # orphans this file's download.
+                if output_name:
+                    f["output_name"] = output_name
                 break
         for fix in report.placeholder_fixes:
             meta["signoffs"].append(

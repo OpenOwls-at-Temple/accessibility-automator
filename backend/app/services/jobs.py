@@ -99,16 +99,23 @@ class JobManager:
 
     def _remediate_one(self, job: Job, filename: str, provider) -> None:
         input_path = self.storage.input_path(job.username, job.group, filename)
-        output_path = self.storage.output_path(job.username, job.group, filename)
+        # Write with the user's *current* suffix; record the name so later suffix
+        # changes never orphan this output.
+        output_path = self.storage.output_write_path(job.username, job.group, filename)
         try:
             report = remediate_file(
                 input_path, output_path, cfg=self.config, provider=provider, overrides=job.overrides
             )
-            write_json_report(report, self.storage.report_path(job.username, job.group, filename))
-            write_html_report(
-                report, self.storage.report_path(job.username, job.group, filename, kind="html")
+            write_json_report(
+                report, self.storage.report_write_path(job.username, job.group, filename)
             )
-            self.storage.update_file_scores(job.username, job.group, filename, report)
+            write_html_report(
+                report,
+                self.storage.report_write_path(job.username, job.group, filename, kind="html"),
+            )
+            self.storage.update_file_scores(
+                job.username, job.group, filename, report, output_name=output_path.name
+            )
         except Exception:
             self.storage.set_file_status(job.username, job.group, filename, "error")
             raise

@@ -125,6 +125,11 @@ export const api = {
     URL.revokeObjectURL(url);
   },
 
+  // --- settings ---
+  getSettings: () => request("/settings"),
+  updateSettings: (filename_suffix) =>
+    request("/settings", { method: "PUT", body: JSON.stringify({ filename_suffix }) }),
+
   // --- admin (invite-only allowlist) ---
   listUsers: () => request("/admin/users"),
   createUser: (email, isAdmin = false) =>
