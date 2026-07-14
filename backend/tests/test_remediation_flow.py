@@ -52,6 +52,30 @@ def test_signoff_acknowledges_a_placeholder(client, db_session, pptx_bytes):
     assert ok.status_code == 200
 
 
+def test_bad_file_does_not_abort_the_batch(client, db_session, pptx_bytes):
+    """A corrupt file must not sink the whole 'Fix All' job — good files still finish."""
+    login(client, db_session)
+    upload(client, "CIS4526", "good.pptx", pptx_bytes)
+    upload(client, "CIS4526", "broken.pptx", b"this is not a real pptx")
+
+    job_id = client.post(f"{API}/groups/CIS4526/remediate", json={}).json()["job_id"]
+    done = wait_for_job(client, job_id)
+
+    # Partial success: the batch completes (not "error"), every file was attempted,
+    # and the summary names the one that failed.
+    assert done["status"] == "done"
+    assert done["files_done"] == done["files_total"] == 2
+    assert "broken.pptx" in (done["error"] or "")
+
+    files = {f["name"]: f for f in client.get(f"{API}/groups/CIS4526").json()["files"]}
+    assert files["good.pptx"]["status"] == "complete"
+    assert files["broken.pptx"]["status"] == "error"
+
+    # The good file's remediated output is still downloadable.
+    out = client.get(f"{API}/groups/CIS4526/files/good.pptx/download?kind=output")
+    assert out.status_code == 200 and len(out.content) > 0
+
+
 def test_remediate_unknown_group_is_404(client, db_session):
     login(client, db_session)
     assert client.post(f"{API}/groups/NOPE/remediate", json={}).status_code == 404
