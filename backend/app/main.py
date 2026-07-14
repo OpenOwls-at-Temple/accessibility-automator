@@ -20,6 +20,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from backend.app.routes import auth, files, groups, jobs, reports, users
 from backend.app.routes import config as config_route
+from backend.app.routes import settings as settings_route
 from backend.app.services.jobs import JobManager
 from backend.app.services.storage import StorageService
 from backend.app.settings import Settings, load_settings
@@ -51,7 +52,7 @@ def create_app(settings: Settings | None = None, config: Config | None = None) -
     )
 
     api = APIRouter(prefix=API_PREFIX)
-    for module in (auth, users, groups, files, reports, jobs, config_route):
+    for module in (auth, users, groups, files, reports, jobs, settings_route, config_route):
         api.include_router(module.router)
 
     @api.get("/health")

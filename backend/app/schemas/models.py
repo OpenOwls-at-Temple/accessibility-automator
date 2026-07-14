@@ -66,3 +66,11 @@ class SignoffRequest(BaseModel):
 class UploadResult(BaseModel):
     saved: list[str]
     group: str
+
+
+class SettingsOut(BaseModel):
+    filename_suffix: str
+
+
+class SettingsUpdate(BaseModel):
+    filename_suffix: str
