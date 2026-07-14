@@ -35,6 +35,7 @@ def fix_pdf(
     audit_results: list[AuditResult],
     cfg: Config,
     provider=None,
+    overrides: dict[str, str] | None = None,
 ) -> list[FixResult]:
     fixes: list[FixResult] = []
 

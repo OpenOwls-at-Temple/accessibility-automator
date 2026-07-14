@@ -1,9 +1,14 @@
-"""OpenAI-compatible LLM provider for alt text and slide titles.
+"""LLM providers for alt text and slide titles.
 
-Talks to any OpenAI-compatible ``/chat/completions`` endpoint via plain HTTP, so
-no vendor SDK is hard-coded — swap providers by changing ``LLM_BASE_URL`` /
-``LLM_MODEL`` (see ai_specs/conventions.md §LLM / AI Conventions). Called
-server-side only.
+Two providers are supported — selected automatically from ``LLM_BASE_URL``:
+
+* ``OpenAICompatibleProvider`` — any endpoint that speaks ``/chat/completions``
+  (OpenAI, Groq, local Ollama, etc.). Default.
+* ``AnthropicProvider`` — Anthropic's ``/v1/messages`` API (Claude / Fable 5).
+  Auto-selected when ``LLM_BASE_URL`` contains "anthropic.com".
+
+Swap providers by setting ``LLM_BASE_URL`` / ``LLM_MODEL`` in ``.env``.
+No vendor SDK is hard-coded — plain HTTP only.
 
 Failures raise :class:`LLMError`; the caller (``ai_fixer``) degrades to a
 placeholder so a remediation job always finishes.
@@ -134,8 +139,83 @@ class OpenAICompatibleProvider:
         )
 
 
-def build_provider(cfg: LLMConfig, env: dict | None = None) -> OpenAICompatibleProvider | None:
+class AnthropicProvider:
+    """Anthropic Messages API provider (Claude / Fable 5).
+
+    Auto-selected when ``LLM_BASE_URL`` contains ``anthropic.com``.
+    Uses ``x-api-key`` auth and the ``/v1/messages`` endpoint.
+    """
+
+    def __init__(self, api_key: str, base_url: str, model: str, cfg: LLMConfig):
+        self.api_key = api_key
+        self.base_url = base_url.rstrip("/")
+        self.model = model
+        self.cfg = cfg
+
+    def _chat(self, system: str, user_content: list[dict]) -> str:
+        url = f"{self.base_url}/v1/messages"
+        payload = {
+            "model": self.model,
+            "max_tokens": self.cfg.max_output_tokens,
+            "system": system,
+            "messages": [{"role": "user", "content": user_content}],
+        }
+        headers = {
+            "x-api-key": self.api_key,
+            "anthropic-version": "2023-06-01",
+            "content-type": "application/json",
+        }
+        last_exc: Exception | None = None
+        for _ in range(2):
+            try:
+                resp = httpx.post(
+                    url, json=payload, headers=headers, timeout=self.cfg.timeout_seconds
+                )
+                resp.raise_for_status()
+                data = resp.json()
+                return data["content"][0]["text"]
+            except (httpx.HTTPError, KeyError, IndexError) as exc:
+                last_exc = exc
+        raise LLMError(f"Anthropic request failed: {last_exc}") from last_exc
+
+    def caption_image(
+        self, image_bytes: bytes, mime_type: str = "image/png", context: str = ""
+    ) -> CaptionResult:
+        data, mime = _resize_image(image_bytes, self.cfg.max_image_size_kb)
+        b64 = base64.b64encode(data).decode("ascii")
+        # Anthropic uses "image" content type with base64 source
+        user_content: list[dict] = []
+        if context:
+            user_content.append({"type": "text", "text": f"Context: {context}"})
+        user_content.append(
+            {
+                "type": "image",
+                "source": {"type": "base64", "media_type": mime, "data": b64},
+            }
+        )
+        parsed = _strip_json(self._chat(prompts.ALT_TEXT_SYSTEM, user_content))
+        return CaptionResult(
+            alt_text=str(parsed.get("alt_text", "")).strip(),
+            decorative=bool(parsed.get("decorative", False)),
+            confidence=float(parsed.get("confidence", 0.0)),
+        )
+
+    def suggest_title(self, slide_text: str) -> TitleResult:
+        user_content = [{"type": "text", "text": f"Slide text:\n{slide_text}"}]
+        parsed = _strip_json(self._chat(prompts.TITLE_SYSTEM, user_content))
+        return TitleResult(
+            title=str(parsed.get("title", "")).strip(),
+            confidence=float(parsed.get("confidence", 0.0)),
+        )
+
+
+def build_provider(
+    cfg: LLMConfig, env: dict | None = None
+) -> OpenAICompatibleProvider | AnthropicProvider | None:
     """Construct a provider from config + environment.
+
+    Auto-selects AnthropicProvider when LLM_BASE_URL contains "anthropic.com",
+    otherwise uses OpenAICompatibleProvider.
 
     Returns ``None`` when the LLM is disabled or no API key is configured —
     the fixer then treats every alt-text/title issue as a placeholder.
@@ -148,4 +228,6 @@ def build_provider(cfg: LLMConfig, env: dict | None = None) -> OpenAICompatibleP
     model = env.get("LLM_MODEL")
     if not (api_key and base_url and model):
         return None
+    if "anthropic.com" in base_url:
+        return AnthropicProvider(api_key, base_url, model, cfg)
     return OpenAICompatibleProvider(api_key, base_url, model, cfg)

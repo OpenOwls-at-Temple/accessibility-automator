@@ -35,7 +35,26 @@ class JobOut(BaseModel):
     progress: float
     files_done: int
     files_total: int
+    current_file: str | None = None
     error: str | None = None
+
+
+class SuggestionItemOut(BaseModel):
+    check_id: str
+    element_ref: str
+    suggestion_type: str  # "alt_text" | "slide_title"
+    draft_text: str
+    is_placeholder: bool
+
+
+class ApprovedSuggestion(BaseModel):
+    check_id: str
+    element_ref: str
+    approved_text: str
+
+
+class ApplyReviewRequest(BaseModel):
+    suggestions: list[ApprovedSuggestion]
 
 
 class SignoffRequest(BaseModel):

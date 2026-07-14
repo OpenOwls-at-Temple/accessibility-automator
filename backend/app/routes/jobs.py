@@ -29,5 +29,6 @@ def get_job(
         progress=job.progress,
         files_done=job.files_done,
         files_total=job.files_total,
+        current_file=job.current_file,
         error=job.error,
     )
