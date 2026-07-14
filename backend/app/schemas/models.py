@@ -42,7 +42,7 @@ class JobOut(BaseModel):
 class SuggestionItemOut(BaseModel):
     check_id: str
     element_ref: str
-    suggestion_type: str   # "alt_text" | "slide_title"
+    suggestion_type: str  # "alt_text" | "slide_title"
     draft_text: str
     is_placeholder: bool
 

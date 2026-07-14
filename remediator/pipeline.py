@@ -24,11 +24,12 @@ from remediator.scorer import compute_score
 class SuggestionItem:
     """One AI-generated suggestion for human review before it is written."""
 
-    check_id: str        # e.g. "P3"
-    element_ref: str     # e.g. "Slide 4 / Picture 7"
+    check_id: str  # e.g. "P3"
+    element_ref: str  # e.g. "Slide 4 / Picture 7"
     suggestion_type: str  # "alt_text" | "slide_title"
-    draft_text: str      # what the AI (or placeholder) would write
+    draft_text: str  # what the AI (or placeholder) would write
     is_placeholder: bool  # True when we had no real LLM to call
+
 
 # extension -> (handler class, audit fn, fix fn)
 _REGISTRY = {
@@ -57,21 +58,25 @@ def scan_file(
     ext = input_path.suffix.lower()
     if ext not in _REGISTRY:
         raise NotImplementedError(f"Unsupported file type {ext!r}")
-    handler_cls, audit_fn, _ = _REGISTRY[ext]
+    handler_cls, _audit_fn, _ = _REGISTRY[ext]
 
     if provider == "__build__":
         provider = build_provider(cfg.llm)
 
     handler = handler_cls(input_path)
-    audit_results = audit_fn(handler)
 
     suggestions: list[SuggestionItem] = []
 
     if ext == ".pptx":
         from pptx.enum.shapes import MSO_SHAPE_TYPE
-        from remediator.handlers.pptx_handler import get_alt_text, is_decorative, is_meaningful_alt_text
-        from remediator.rules import pptx_rules as _pr
+
+        from remediator.handlers.pptx_handler import (
+            get_alt_text,
+            is_decorative,
+            is_meaningful_alt_text,
+        )
         from remediator.llm.provider import LLMError
+        from remediator.rules import pptx_rules as _pr
 
         prs = handler.presentation
         for s_idx, slide in enumerate(prs.slides, start=1):
@@ -79,7 +84,8 @@ def scan_file(
             title_shape = slide.shapes.title
             if title_shape is None or not (title_shape.text or "").strip():
                 slide_text = " ".join(
-                    s.text.strip() for s in _pr._walk_shapes(slide.shapes)
+                    s.text.strip()
+                    for s in _pr._walk_shapes(slide.shapes)
                     if s.has_text_frame and s.text.strip()
                 )
                 draft = f"[Slide {s_idx} Title]"
@@ -92,13 +98,15 @@ def scan_file(
                             is_ph = False
                     except (LLMError, Exception):
                         pass
-                suggestions.append(SuggestionItem(
-                    check_id="P2",
-                    element_ref=_pr._slide_label(s_idx),
-                    suggestion_type="slide_title",
-                    draft_text=draft,
-                    is_placeholder=is_ph,
-                ))
+                suggestions.append(
+                    SuggestionItem(
+                        check_id="P2",
+                        element_ref=_pr._slide_label(s_idx),
+                        suggestion_type="slide_title",
+                        draft_text=draft,
+                        is_placeholder=is_ph,
+                    )
+                )
 
             # P3 — images missing alt text
             for shape in _pr._walk_shapes(slide.shapes):
@@ -113,18 +121,24 @@ def scan_file(
                     try:
                         image = shape.image
                         result = provider.caption_image(image.blob, image.content_type, context)
-                        if not result.decorative and result.alt_text and result.confidence >= cfg.llm.confidence_threshold:
+                        if (
+                            not result.decorative
+                            and result.alt_text
+                            and result.confidence >= cfg.llm.confidence_threshold
+                        ):
                             draft = result.alt_text
                             is_ph = False
                     except (LLMError, Exception):
                         pass
-                suggestions.append(SuggestionItem(
-                    check_id="P3",
-                    element_ref=_pr._ref(s_idx, shape),
-                    suggestion_type="alt_text",
-                    draft_text=draft,
-                    is_placeholder=is_ph,
-                ))
+                suggestions.append(
+                    SuggestionItem(
+                        check_id="P3",
+                        element_ref=_pr._ref(s_idx, shape),
+                        suggestion_type="alt_text",
+                        draft_text=draft,
+                        is_placeholder=is_ph,
+                    )
+                )
 
     return suggestions
 

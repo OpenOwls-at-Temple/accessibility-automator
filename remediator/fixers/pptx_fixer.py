@@ -92,7 +92,12 @@ def fix_pptx(
         element_ref = rules._slide_label(s_idx)
         fixes.append(
             ai_fixer.fix_slide_title(
-                slide, s_idx, element_ref, _slide_text(slide), cfg, provider,
+                slide,
+                s_idx,
+                element_ref,
+                _slide_text(slide),
+                cfg,
+                provider,
                 override=overrides.get(element_ref),
             )
         )
@@ -107,7 +112,11 @@ def fix_pptx(
         element_ref = rules._ref(s_idx, shape)
         fixes.append(
             ai_fixer.fix_image_alt_text(
-                shape, element_ref, context, cfg, provider,
+                shape,
+                element_ref,
+                context,
+                cfg,
+                provider,
                 override=overrides.get(element_ref),
             )
         )

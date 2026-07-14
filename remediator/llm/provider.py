@@ -187,10 +187,12 @@ class AnthropicProvider:
         user_content: list[dict] = []
         if context:
             user_content.append({"type": "text", "text": f"Context: {context}"})
-        user_content.append({
-            "type": "image",
-            "source": {"type": "base64", "media_type": mime, "data": b64},
-        })
+        user_content.append(
+            {
+                "type": "image",
+                "source": {"type": "base64", "media_type": mime, "data": b64},
+            }
+        )
         parsed = _strip_json(self._chat(prompts.ALT_TEXT_SYSTEM, user_content))
         return CaptionResult(
             alt_text=str(parsed.get("alt_text", "")).strip(),
@@ -207,7 +209,9 @@ class AnthropicProvider:
         )
 
 
-def build_provider(cfg: LLMConfig, env: dict | None = None) -> OpenAICompatibleProvider | AnthropicProvider | None:
+def build_provider(
+    cfg: LLMConfig, env: dict | None = None
+) -> OpenAICompatibleProvider | AnthropicProvider | None:
     """Construct a provider from config + environment.
 
     Auto-selects AnthropicProvider when LLM_BASE_URL contains "anthropic.com",

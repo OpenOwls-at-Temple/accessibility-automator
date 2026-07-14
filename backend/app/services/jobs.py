@@ -54,8 +54,12 @@ class JobManager:
         self._jobs: dict[str, Job] = {}
         self._lock = threading.Lock()
 
-    def start(self, username: str, group: str, files: list[str], overrides: dict[str, str] | None = None) -> Job:
-        job = Job(id=uuid.uuid4().hex, username=username, group=group, files=files, overrides=overrides)
+    def start(
+        self, username: str, group: str, files: list[str], overrides: dict[str, str] | None = None
+    ) -> Job:
+        job = Job(
+            id=uuid.uuid4().hex, username=username, group=group, files=files, overrides=overrides
+        )
         with self._lock:
             self._jobs[job.id] = job
         self._executor.submit(self._run, job)
@@ -84,7 +88,9 @@ class JobManager:
         input_path = self.storage.input_path(job.username, job.group, filename)
         output_path = self.storage.output_path(job.username, job.group, filename)
         try:
-            report = remediate_file(input_path, output_path, cfg=self.config, provider=provider, overrides=job.overrides)
+            report = remediate_file(
+                input_path, output_path, cfg=self.config, provider=provider, overrides=job.overrides
+            )
             write_json_report(report, self.storage.report_path(job.username, job.group, filename))
             write_html_report(
                 report, self.storage.report_path(job.username, job.group, filename, kind="html")

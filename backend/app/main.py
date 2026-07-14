@@ -10,7 +10,9 @@ DB-backed (users allowlist); the schema is created by Alembic, not here.
 from __future__ import annotations
 
 from pathlib import Path
+
 from dotenv import load_dotenv
+
 load_dotenv(Path(__file__).resolve().parents[2] / ".env")  # always finds .env at repo root
 
 from fastapi import APIRouter, FastAPI
