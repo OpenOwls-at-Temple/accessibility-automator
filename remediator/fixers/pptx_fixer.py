@@ -15,6 +15,7 @@ from remediator.handlers.pptx_handler import (
     get_alt_text,
     is_decorative,
     is_meaningful_alt_text,
+    xml_safe_text,
 )
 from remediator.models import (
     ACTION_AUTO_FIXED,
@@ -39,7 +40,9 @@ def _derive_doc_title(prs, handler: PptxHandler) -> str:
     for slide in prs.slides:
         title = slide.shapes.title
         if title is not None and (title.text or "").strip():
-            return title.text.strip()
+            # Collapse whitespace so soft line breaks (U+000B) in the slide
+            # title don't leave double spaces once made XML-safe.
+            return " ".join(xml_safe_text(title.text).split())
     return handler.path.stem
 
 

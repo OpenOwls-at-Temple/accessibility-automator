@@ -87,6 +87,32 @@ def test_slide_without_title_placeholder_does_not_crash(tmp_path, fake_provider)
     assert p2 and p2[0].action == ACTION_NOT_FIXED and not p2[0].success
 
 
+def test_title_with_soft_line_break_does_not_crash(tmp_path):
+    """A slide title with a soft line break (U+000B) must not crash the fixer.
+
+    PowerPoint stores in-title line breaks as a vertical tab, which is legal in
+    a run but illegal to write into ``core_properties.title`` — lxml raises. The
+    derived document title must be sanitized so the job finishes and the output
+    is a valid deck (regression: a real 79-slide lecture crashed here).
+    """
+    prs = Presentation()
+    slide = prs.slides.add_slide(prs.slide_layouts[5])  # Title Only: has a title
+    slide.shapes.title.text = "Recursively Defined Sets and \x0bStructural Induction"
+    src = tmp_path / "breaky.pptx"
+    prs.save(str(src))
+
+    out = tmp_path / "breaky_a11y.pptx"
+    report = remediate_file(src, out, cfg=load_config(), provider=None)
+
+    # Completed and wrote a valid, reopenable deck with a clean, control-char-free title.
+    assert out.exists()
+    written = Presentation(str(out)).core_properties.title
+    assert written == "Recursively Defined Sets and Structural Induction"
+    assert not any(ord(c) < 0x20 and c not in "\t\n\r" for c in written)
+    p1 = [f for f in report.fixes if f.check_id == "P1"]
+    assert p1 and p1[0].success
+
+
 def test_decorative_image_is_marked(bad_pptx, tmp_path, decorative_provider):
     out = tmp_path / "bad_a11y.pptx"
     report = remediate_file(bad_pptx, out, cfg=load_config(), provider=decorative_provider)

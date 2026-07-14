@@ -39,6 +39,22 @@ class PptxHandler(FormatHandler):
         return (".pptx",)
 
 
+# Characters lxml rejects when writing an XML attribute value or text node.
+# PowerPoint stores soft line breaks in title/heading text as U+000B (vertical
+# tab), which is legal inside a run but not as a bare XML string — writing it to
+# ``core_properties.title`` or a ``descr`` attribute raises ``ValueError``.
+_XML_ILLEGAL_RE = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f]")
+
+
+def xml_safe_text(text: str) -> str:
+    """Make text safe to write into OOXML: line/page breaks (U+000B/000C) become
+    spaces and other control chars are dropped. Tabs/newlines are left as-is
+    (they are valid XML). Returns ``text`` unchanged when it is already clean."""
+    if not text:
+        return text
+    return _XML_ILLEGAL_RE.sub(lambda m: " " if m.group() in "\x0b\x0c" else "", text)
+
+
 # ── OOXML helpers (module-level so rules and fixers can reuse them) ──
 
 
@@ -65,7 +81,7 @@ def get_alt_text(shape) -> str:
 def set_alt_text(shape, text: str) -> None:
     cnvpr = find_cnvpr(shape)
     if cnvpr is not None:
-        cnvpr.set("descr", text)
+        cnvpr.set("descr", xml_safe_text(text))
 
 
 def is_meaningful_alt_text(text: str) -> bool:
