@@ -44,6 +44,10 @@ def create_app(settings: Settings | None = None, config: Config | None = None) -
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
+        # Let the browser read the download filename (``*_a11y.<ext>``) cross-origin;
+        # without this the frontend can't see Content-Disposition and falls back to
+        # the original name.
+        expose_headers=["Content-Disposition"],
     )
 
     api = APIRouter(prefix=API_PREFIX)
