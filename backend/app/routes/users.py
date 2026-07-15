@@ -31,7 +31,12 @@ def create_user(body: UserCreate, db: Session = Depends(get_db)):
             status_code=status.HTTP_409_CONFLICT,
             detail="A user with this email already exists",
         )
-    user = User(email=body.email, name=body.name, is_admin=body.is_admin)
+    user = User(
+        email=body.email,
+        name=body.name,
+        affiliation=body.affiliation,
+        is_admin=body.is_admin,
+    )
     db.add(user)
     db.commit()
     db.refresh(user)
