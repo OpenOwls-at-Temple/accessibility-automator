@@ -132,10 +132,10 @@ export const api = {
 
   // --- admin (invite-only allowlist) ---
   listUsers: () => request("/admin/users"),
-  createUser: (email, isAdmin = false) =>
+  createUser: (email, { name = "", affiliation = "", isAdmin = false } = {}) =>
     request("/admin/users", {
       method: "POST",
-      body: JSON.stringify({ email, is_admin: isAdmin }),
+      body: JSON.stringify({ email, name, affiliation, is_admin: isAdmin }),
     }),
   updateUser: (id, patch) =>
     request(`/admin/users/${id}`, { method: "PATCH", body: JSON.stringify(patch) }),

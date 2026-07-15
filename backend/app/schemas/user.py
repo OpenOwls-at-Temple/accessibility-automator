@@ -13,6 +13,7 @@ class UserOut(BaseModel):
     id: str
     email: str
     name: str
+    affiliation: str
     is_admin: bool
     is_active: bool
     created_at: datetime
@@ -22,6 +23,7 @@ class UserOut(BaseModel):
 class UserCreate(BaseModel):
     email: str
     name: str = ""
+    affiliation: str = ""
     is_admin: bool = False
 
     @field_validator("email")
@@ -35,6 +37,7 @@ class UserCreate(BaseModel):
 
 class UserUpdate(BaseModel):
     name: str | None = None
+    affiliation: str | None = None
     is_admin: bool | None = None
     is_active: bool | None = None
 

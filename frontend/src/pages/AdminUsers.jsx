@@ -9,6 +9,8 @@ export default function AdminUsers() {
   const { user, loading } = useAuth();
   const [users, setUsers] = useState([]);
   const [email, setEmail] = useState("");
+  const [name, setName] = useState("");
+  const [affiliation, setAffiliation] = useState("");
   const [isAdmin, setIsAdmin] = useState(false);
   const [error, setError] = useState("");
 
@@ -31,8 +33,14 @@ export default function AdminUsers() {
     e.preventDefault();
     setError("");
     try {
-      await api.createUser(email.trim(), isAdmin);
+      await api.createUser(email.trim(), {
+        name: name.trim(),
+        affiliation: affiliation.trim(),
+        isAdmin,
+      });
       setEmail("");
+      setName("");
+      setAffiliation("");
       setIsAdmin(false);
       load();
     } catch (err) {
@@ -68,6 +76,20 @@ export default function AdminUsers() {
             aria-label="New user email"
             required
           />
+          <input
+            type="text"
+            placeholder="Name (optional)"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            aria-label="New user name"
+          />
+          <input
+            type="text"
+            placeholder="Affiliation (optional)"
+            value={affiliation}
+            onChange={(e) => setAffiliation(e.target.value)}
+            aria-label="New user affiliation"
+          />
           <label className="muted">
             <input
               type="checkbox"
@@ -85,6 +107,7 @@ export default function AdminUsers() {
               <tr>
                 <th>Email</th>
                 <th>Name</th>
+                <th>Affiliation</th>
                 <th>Admin</th>
                 <th>Status</th>
                 <th>Actions</th>
@@ -95,6 +118,7 @@ export default function AdminUsers() {
                 <tr key={u.id}>
                   <td>{u.email}</td>
                   <td>{u.name || <span className="muted">—</span>}</td>
+                  <td>{u.affiliation || <span className="muted">—</span>}</td>
                   <td>{u.is_admin ? "yes" : "no"}</td>
                   <td>
                     <span className={`badge ${u.is_active ? "complete" : "error"}`}>
