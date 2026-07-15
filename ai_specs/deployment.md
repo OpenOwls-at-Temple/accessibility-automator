@@ -21,14 +21,14 @@ A separate staging environment is optional for Phase 1; if used, it is a second 
 ## Hosting Platforms
 <!-- Where is each part of the application hosted and why? -->
 
-Primary target is **Render** for Phase 1 (via the checked-in `render.yaml` Blueprint), with the **Temple data center** as the alternative if access and approval are obtained. The only database is the **user allowlist** — Supabase Postgres in prod (or SQLite on the persistent disk).
+Primary target is **Render** for Phase 1 (via the checked-in `render.yaml` Blueprint), with the **Temple data center** as the alternative if access and approval are obtained. The only database is the **user allowlist** — **SQLite on the backend's persistent disk** (`sqlite:////data/a11y.db`). Because the app already requires a persistent disk for the document files (which pins it to a single backend instance), the allowlist is a tiny, low-concurrency `users` table, and external Postgres's main benefit — many stateless instances sharing one DB — does not apply, SQLite-on-disk is the chosen prod DB. **Supabase Postgres** remains a supported alternative (set `DATABASE_URL` to the pooler URL) if managed backups/dashboard or a service-independent DB are wanted later.
 
 | Component | Platform | Notes |
 |-----------|----------|-------|
 | Frontend | Render Static Site (Vite build output `frontend/dist`) | Auto-deploys from `main`; SPA rewrite to `/index.html` |
 | Backend | Render Web Service (Python runtime, uv) | `uv sync` build; `alembic upgrade head` then `uvicorn` start. Switch to a Docker runtime when PDF OCR (Tesseract) lands. |
 | File storage | Render **Persistent Disk** mounted at `STORAGE_DIR` | Per-user workspaces live here; **must be a persistent disk, not ephemeral**, or files are lost on redeploy |
-| Allowlist DB | **Supabase Postgres** (`DATABASE_URL`) — or SQLite on the persistent disk | Only the `users` table; Alembic migrates it on each deploy |
+| Allowlist DB | **SQLite on the persistent disk** (`DATABASE_URL=sqlite:////data/a11y.db`) — or Supabase Postgres | Only the `users` table; Alembic migrates it on each deploy. Lives on the same disk as the documents |
 | LLM | External OpenAI-compatible endpoint | Configured via env vars; provider swappable |
 | Auth (prod) | **Google SSO** (Google Cloud OAuth web client) + admin allowlist | No Temple IT tenant registration needed — just a Google OAuth client and a seeded admin |
 
@@ -46,7 +46,7 @@ Primary target is **Render** for Phase 1 (via the checked-in `render.yaml` Bluep
 | `GOOGLE_CLIENT_ID` | Prod | Google OAuth **web** client ID (same value as the frontend). Blank locally → dev-login only. |
 | `ALLOWED_EMAIL_DOMAIN` | Yes | Sign-in restricted to this email domain (default `temple.edu`) |
 | `JWT_SECRET` | Yes | Secret for signing the app JWT (Render can generate one) |
-| `DATABASE_URL` | Yes | User-allowlist DB — SQLite locally, Supabase Postgres in prod |
+| `DATABASE_URL` | Yes | User-allowlist DB — SQLite locally (`sqlite:///./a11y.db`) and in prod on the persistent disk (`sqlite:////data/a11y.db`); or a Supabase Postgres pooler URL |
 | `STORAGE_DIR` | Yes | Root directory for per-user workspaces (mount a persistent disk here in prod) |
 | `FRONTEND_URL` | Yes | Base URL of the frontend (CORS + links) |
 | `CORS_ORIGINS` | Yes | Allowed frontend origin(s); defaults to `FRONTEND_URL` |
@@ -103,16 +103,15 @@ Locally, leave `GOOGLE_CLIENT_ID` blank and sign in via the **"Local dev login"*
 ### Render Blueprint (both services)
 The repo's `render.yaml` defines both services. In the Render dashboard: **New + → Blueprint**, connect the repo, and Render prompts for every `sync: false` secret.
 
-- **Backend** (`type: web`, python runtime): build `pip install uv && uv sync --no-dev`; start `uv run alembic upgrade head && uv run uvicorn backend.app.main:app --host 0.0.0.0 --port $PORT`; health `/api/v1/health`; a **Persistent Disk** mounted at `/data` with `STORAGE_DIR=/data`. Alembic migrates the allowlist on each deploy.
-- **Frontend** (`type: static`): build `npm ci && npm run build`, publish `frontend/dist`, SPA rewrite to `/index.html`. Set `VITE_API_BASE_URL` and `VITE_GOOGLE_CLIENT_ID`.
-- **Database**: paste the **Supabase** pooler URL into `DATABASE_URL` (or use `sqlite:////data/a11y.db` on the disk to skip Supabase).
+- **Backend** (`type: web`, python runtime, **`plan: starter`**): build `pip install uv && uv sync --no-dev`; start `uv run alembic upgrade head && uv run uvicorn backend.app.main:app --host 0.0.0.0 --port $PORT`; health `/api/v1/health`; a **Persistent Disk** mounted at `/data` with `STORAGE_DIR=/data`. Alembic migrates the allowlist on each deploy. A **paid** instance (Starter+) is required — Render's Free instances get an ephemeral filesystem and cannot attach a disk, so documents and the SQLite allowlist would be wiped on every redeploy/restart. Bump to `standard` if large image-heavy decks exhaust the 512 MB Starter RAM.
+- **Frontend** (`type: static`, free): build `npm ci && npm run build`, publish `frontend/dist`, SPA rewrite to `/index.html`. Set `VITE_API_BASE_URL` and `VITE_GOOGLE_CLIENT_ID`.
+- **Database**: `DATABASE_URL` is preset in `render.yaml` to `sqlite:////data/a11y.db` — SQLite on the same persistent disk, no external service. (To use Supabase instead, change that var to `sync: false` and paste the pooler URL when prompted.)
 
 ### Google SSO (one-time, prod)
 1. In **Google Cloud Console → APIs & Services → Credentials**, create an **OAuth 2.0 Client ID** of type **Web application**.
 2. Add the frontend origin to **Authorized JavaScript origins** (e.g. `https://<frontend>.onrender.com`).
 3. Put the client ID in both `GOOGLE_CLIENT_ID` (backend) and `VITE_GOOGLE_CLIENT_ID` (frontend) — same value. No client *secret* is needed (the frontend uses Google Identity Services and the backend verifies the ID token).
-4. **Seed the first admin** so someone can invite others (one-off, against the prod DB):
-   `DATABASE_URL=<prod-url> uv run python -m backend.app.seed --admin you@temple.edu`. That admin then adds Temple users from the in-app **Manage users** page.
+4. **Seed the first admin** so someone can invite others (one-off). With SQLite-on-disk the DB lives on the backend instance, so run the seed **there** via the Render dashboard **Shell** tab: `uv run python -m backend.app.seed --admin you@temple.edu` (it picks up `DATABASE_URL=sqlite:////data/a11y.db` from the service env). That admin then adds Temple users from the in-app **Manage users** page. (With Supabase you could instead run it locally against the pooler URL: `DATABASE_URL=<pooler-url> uv run python -m backend.app.seed --admin you@temple.edu`.)
 
 ---
 
