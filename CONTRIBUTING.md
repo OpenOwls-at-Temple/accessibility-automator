@@ -61,12 +61,17 @@ To exercise the **real** Google button, set `GOOGLE_CLIENT_ID` (backend `.env`) 
 add `http://localhost:5173` to that client's Authorized JavaScript origins. See
 [`ai_specs/deployment.md`](ai_specs/deployment.md).
 
-### macOS + OneDrive venv note
+### Using your own venv
 
-This repo lives in a OneDrive folder shared between macOS and Windows, so the
-in-repo `.venv/` may be the *other* OS's. `uv run` self-heals the venv per-OS. If
-you keep a manual Mac venv (e.g. `~/.venvs/accessibility-automator`), activate it
-and pass `--no-uv` to `run_server.sh` to use it directly.
+`run_server.sh` goes through `uv run`, which provisions the in-repo `.venv/` for
+you — no manual venv needed on any OS. If you'd rather use a venv you manage
+yourself, activate it and pass `--no-uv` to `run_server.sh`.
+
+> Work from a **local clone**, not a cloud-synced folder (OneDrive, Dropbox,
+> iCloud). Sync `.venv/` between machines — or between macOS and Windows — and
+> you get a venv built for the wrong OS, plus sync conflicts on the SQLite dev
+> DB. Use git to move code between machines; each clone keeps its own `.venv/`,
+> `.env`, `a11y.db`, and `storage/`.
 
 ## Project layout
 

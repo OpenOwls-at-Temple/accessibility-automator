@@ -51,9 +51,6 @@ download the remediated output. Admins can invite Temple users from **Manage use
 > Auth is **Google SSO + an admin-managed invite allowlist** (JWT bearer). In
 > production set `GOOGLE_CLIENT_ID` / `VITE_GOOGLE_CLIENT_ID` to a Google OAuth web
 > client ID; locally the dev-login box stands in. Interactive API docs at `/docs`.
->
-> On a Mac with a manually-managed venv (the in-repo `.venv` is the Windows one
-> under OneDrive), activate `~/.venvs/accessibility-automator` and pass `--no-uv`.
 
 ## Status
 

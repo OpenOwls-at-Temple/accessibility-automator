@@ -103,7 +103,7 @@ project-root/
 | Auth | **Google SSO (GIS ID token, verified server-side)** + an **admin-managed allowlist** (`users` table); **JWT bearer** sessions; local-only dev login | No self-service sign-up (students can't flood it): Google verifies *identity*, the allowlist authorizes. Mirrors `owl-jeopardy-pilot`. |
 | LLM access | Vision model behind an **OpenAI-compatible** `LLMProvider`, server-side only | Provider/model swappable; API key stays on server |
 | Storage | Server filesystem for documents (per-user folders; metadata in JSON) **+ a small SQL `users` table** for the allowlist | Documents stay on disk (per-user isolation); only auth needs a DB — SQLite (local) / Supabase Postgres (prod), via SQLAlchemy + Alembic |
-| Packaging | **uv** (`pyproject.toml` deps + `uv.lock`), single root project spanning `remediator/` + `backend/` | Reproducible installs; `uv run` self-heals the venv per-OS (the repo is shared via OneDrive across macOS/Windows) |
+| Packaging | **uv** (`pyproject.toml` deps + `uv.lock`), single root project spanning `remediator/` + `backend/` | Reproducible installs; `uv run` provisions the venv per-OS, so a clone works on macOS or Windows with no manual venv step |
 | Output naming | `<name>_a11y.<ext>` in `output/<group>/`; originals untouched | Clear, non-destructive convention |
 | Scoring | Weighted average by severity, with a Severe-issue score cap | Approximates Panorama's weighted model (see Domain Knowledge) |
 | Honesty | Report two numbers: **checker-passing score** and **truly-remediated estimate** (excludes placeholders) | Keeps the tool honest about "passes the checker" vs "actually accessible" |

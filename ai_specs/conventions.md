@@ -63,7 +63,7 @@
 ## Package management (Python)
 
 - Use **uv**. Add/remove dependencies in `pyproject.toml` (runtime under `[project.dependencies]`, tooling under `[dependency-groups] dev`) and commit the updated **`uv.lock`**. There is **no `requirements.txt`**.
-- Run things with `uv run …` (e.g. `uv run pytest`, `uv run uvicorn backend.app.main:app`). On a manually-managed venv (e.g. the Mac `~/.venvs/...`), activate it and skip the `uv run` prefix.
+- Run things with `uv run …` (e.g. `uv run pytest`, `uv run uvicorn backend.app.main:app`) — it provisions the project `.venv` for the current OS, so no manual venv step is needed. If you keep a venv you manage yourself, activate it and skip the `uv run` prefix.
 - Never `pip install` into the project ad hoc — add the dep to `pyproject.toml` and re-lock.
 
 ## Auth conventions

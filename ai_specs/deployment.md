@@ -94,7 +94,7 @@ uv run uvicorn backend.app.main:app --reload   # http://localhost:8000
 uv run python -m backend.cli fix path/to/lecture1.pptx
 ```
 
-Locally, leave `GOOGLE_CLIENT_ID` blank and sign in via the **"Local dev login"** box with the seeded admin email — no Google setup needed. On a Mac using a manually-managed venv (e.g. `~/.venvs/accessibility-automator`, since the in-repo `.venv` is the Windows one under OneDrive), activate it and pass `--no-uv` to `run_server.sh`.
+Locally, leave `GOOGLE_CLIENT_ID` blank and sign in via the **"Local dev login"** box with the seeded admin email — no Google setup needed. `run_server.sh` provisions the venv via `uv run` on either OS; to use a venv you manage yourself, activate it and pass `--no-uv`.
 
 ---
 

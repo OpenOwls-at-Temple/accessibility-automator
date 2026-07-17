@@ -8,10 +8,9 @@
 #
 # Both run in THIS terminal (backgrounded); press Ctrl+C once to stop both.
 #
-# By default the backend runs through `uv run` (which self-heals the project
-# .venv for the current OS — handy in a OneDrive folder shared with Windows).
-# If you keep your own Mac venv (e.g. ~/.venvs/accessibility-automator),
-# activate it and pass --no-uv to run uvicorn/alembic/python directly.
+# By default the backend runs through `uv run` (which provisions the project
+# .venv for the current OS). If you keep your own venv, activate it and pass
+# --no-uv to run uvicorn/alembic/python directly.
 #
 # First-time setup (deps, migrate, seed the admin) runs only with --setup.
 #
